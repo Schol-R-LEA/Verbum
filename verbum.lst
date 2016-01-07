@@ -1,0 +1,277 @@
+     1                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+     2                                  ; Verbum boot loader for FAT12
+     3                                  ; * sets the segments for use in the boot process.
+     4                                  ; * loads and verifies the boot image from the second sector, 
+     5                                  ;    then transfers control  to it.
+     6                                  ;
+     7                                  ; Version History (note: build versions not shown) 
+     8                                  ; pre      - June 2002 to February 2004 - early test versions
+     9                                  ;                * sets segments, loads image from second sector          
+    10                                  ; v 0.01 - 28 February 2004 Joseph Osako 
+    11                                  ;               * Code base cleaned up
+    12                                  ;               * Added BPB data for FAT12 support
+    13                                  ;               * renamed "Verbum Boot Loader"
+    14                                  ; v0.02 - 8 May 2004 Joseph Osako
+    15                                  ;                *  moved existing disk handling into separate functions
+    16                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    17                                  ;; constants
+    18                                  ;
+    19                                  
+    20                                  %define boot_base   0x0000      ; the segment:offset pair for the boot code entrypoint
+    21                                  %define boot_offset 0x7C00 
+    22                                  
+    23                                  stage2_base   	equ 0x1000      ; the segment:offset to load the second stage into
+    24                                  stage2_offset   equ 0x0000   
+    25                                  stack_seg  	equ 0x9000
+    26                                  stack_top	equ 0xFFFC
+    27                                  
+    28                                  VBIOS	        equ 0x10        ; BIOS interrupt vector for video services
+    29                                  ttype	        equ 0x0E        ; insert character in AL as if screen were teletype
+    30                                  NULL	        equ 0x00        ; end of string marker
+    31                                  CR	        equ 0x0D        ; carriage return
+    32                                  LF	        equ 0x0A        ; line feed 
+    33                                  
+    34                                  DBIOS	        equ 0x13        ; BIOS interrupt vector for disk services
+    35                                  disk_reset	equ 0x00        ; disk reset service
+    36                                  disk_read	equ 0x02        ; disk read service
+    37                                  tries           equ 0x03        ; number of times to attempt to access the flopy dri
+    38                                  reset_failure   equ 0x01        ; error code returned on disk reset failure
+    39                                  read_failure    equ 0x02        ; error code returned on disk read failure
+    40                                  
+    41                                  cyl             equ 0x00        ; cylinder to read from
+    42                                  head	        equ 0x00        ; head to read from
+    43                                  startsector	equ 0x02        ; sector to start reading at
+    44                                  numsectors	equ 0x01        ; number of sectors to read
+    45                                  
+    46                                  
+    47                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    48                                  ;; macros
+    49                                  ;
+    50                                  %define zero(x) xor x, x
+    51                                  
+    52                                  %macro write 1
+    53                                     mov si, %1
+    54                                     call printstr
+    55                                  %endmacro
+    56                                  
+    57                                  
+    58                                  [bits 16]
+    59                                  [org boot_offset]
+    60                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    61                                  ; entry - the entrypoint to the code. Make a short jump passed the BPB.
+    62                                  entry:
+    63 00000000 EB42                      jmp short entry2
+    64                                  
+    65                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    66                                  ; FAT12 Boot Parameter Block - required by filesystem
+    67 00000002 56657262302E3032        OEM_ID                  db "Verb0.02"
+    68 0000000A 0002                    Bytes_Per_Sector	dw 0x0200
+    69 0000000C 0100                    Sectors_Per_Cluster	dw 0x0001
+    70 0000000E 0100                    Reserved_Sectors	dw 0x0001
+    71 00000010 02                      FATs		        db 0x02
+    72 00000011 FF00                    Root_Entries		dw 0x00FF
+    73 00000013 400B                    Sectors_Short		dw 0x0B40
+    74 00000015 F0                      Media_Descriptor	db 0xF0                 ; assumes 3.5" 1.44M disk
+    75 00000016 0700                    Sectors_Per_FAT_Short	dw 0x0007
+    76 00000018 1200                    Sectors_Per_Track	dw 0x0012
+    77 0000001A 0200                    Heads		        dw 0x02
+    78 0000001C 00000000                Hidden_Sectors	        dd 0x00000000
+    79 00000020 00000000                Sectors_Long		dd 0x00000000
+    80 00000024 00000000                Sectors_Per_FAT_Long	dd 0x00000000
+    81 00000028 0000                    Extension_Flags	        dw 0x0000
+    82                                  
+    83                                  ; extended BPB section
+    84 0000002A 00                      Drive_Number		db 0x00
+    85 0000002B 00                      Current_Head		db 0x00
+    86 0000002C 28                      BPB_Signature		db 0x28
+    87 0000002D 01000000                Serial_Number		dd 0x000001
+    88 00000031 56657262756D20426F-     Disk_Label              db "Verbum Boot"        ; must be exactly 11 characters
+    89 0000003A 6F74               
+    90 0000003C 4641543132202020        File_System		db "FAT12   "           ; must be exactly 8 characters
+    91                                  
+    92                                  
+    93                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    94                                  ; entry2 - do a far jump to ensure that you have the desired segment:offset location
+    95                                  entry2:
+    96 00000044 EA[4900]0000               jmp boot_base:start
+    97                                  
+    98                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    99                                  ; start
+   100                                  ; This is the real begining of the code. The first order of
+   101                                  ; business is clearing the interrupts, then setting the
+   102                                  ; segment registers and the stack pointer.  
+   103                                  
+   104                                  start:
+   105 00000049 B80090                    mov ax, stack_seg
+   106 0000004C BBFCFF                    mov bx, stack_top
+   107 0000004F FA                        cli
+   108 00000050 8ED0                      mov ss, ax          ; and the stack at an arbitrarily high point past ES.
+   109 00000052 89DC                      mov sp,  bx         ; put the stack pointer to the top of SS
+   110 00000054 FB                        sti                  ; reset ints so BIOS calls can be used
+   111 00000055 8CC8                      mov ax, cs
+   112 00000057 8ED8                      mov ds, ax          ; set DS == CS
+   113                                  
+   114                                    write testnumber   
+   115 00000059 BE[0F01]            <1>  mov si, %1
+   116 0000005C E85D00              <1>  call printstr
+   117 0000005F 8816[FC01]                mov [bootdrv], dl   ; save boot drive info for later use
+   118                                    write reset
+   119 00000063 BE[2B01]            <1>  mov si, %1
+   120 00000066 E85300              <1>  call printstr
+   121                                  
+   122                                  ; read in the data from disk and load it to ES:BX (already initalized)
+   123                                    write loading
+   124 00000069 BE[4301]            <1>  mov si, %1
+   125 0000006C E84D00              <1>  call printstr
+   126 0000006F E86300                    call read_disk
+   127 00000072 3D0100                    cmp ax, reset_failure
+   128 00000075 7508                      jne good_reset
+   129                                    write reset_failed
+   130 00000077 BE[B801]            <1>  mov si, %1
+   131 0000007A E83F00              <1>  call printstr
+   132 0000007D EB35                      jmp short shutdown
+   133                                  good_reset:
+   134 0000007F 3D0200                    cmp ax, read_failure
+   135 00000082 7508                      jne good_read
+   136                                    write read_failed
+   137 00000084 BE[CF01]            <1>  mov si, %1
+   138 00000087 E83200              <1>  call printstr
+   139 0000008A EB28                      jmp short shutdown
+   140                                  
+   141                                  good_read:
+   142                                    write done
+   143 0000008C BE[5901]            <1>  mov si, %1
+   144 0000008F E82A00              <1>  call printstr
+   145                                  
+   146                                  ; set up fake return frame for code returning from second stage
+   147 00000092 8CC8                      mov ax, cs
+   148 00000094 50                        push ax
+   149 00000095 B8[AA00]                  mov ax, re_enter
+   150 00000098 50                        push ax  
+   151                                  
+   152                                  ; fake a jump to the second stage entry point
+   153 00000099 B80010                    mov ax, stage2_base
+   154 0000009C 8EC0                      mov es, ax
+   155 0000009E BB0000                    mov bx, stage2_offset
+   156 000000A1 06                        push es
+   157 000000A2 53                        push bx
+   158                                    write snd_stage
+   159 000000A3 BE[6101]            <1>  mov si, %1
+   160 000000A6 E81300              <1>  call printstr
+   161 000000A9 CB                        retf
+   162                                  
+   163                                  re_enter:
+   164 000000AA 8CC8                      mov ax, cs
+   165 000000AC 8ED8                      mov ds, ax
+   166                                    write returned
+   167 000000AE BE[9601]            <1>  mov si, %1
+   168 000000B1 E80800              <1>  call printstr
+   169                                  
+   170                                  shutdown:
+   171                                     write exit 
+   172 000000B4 BE[ED01]            <1>  mov si, %1
+   173 000000B7 E80200              <1>  call printstr
+   174 000000BA EBFE                       jmp short $
+   175                                  
+   176                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   177                                  ;; Auxilliary functions      
+   178                                  
+   179                                  ;; printstr - prints the string point to by SI
+   180                                  
+   181                                  printstr:
+   182 000000BC 50                        push ax
+   183 000000BD B40E                      mov ah, ttype        ; set function to 'teletype mode'
+   184                                    .print_char:   
+   185 000000BF AC                          lodsb               ; update byte to print
+   186 000000C0 3C00                        cmp al, NULL        ; test that it isn't NULL
+   187 000000C2 7404                        jz short .endstr
+   188 000000C4 CD10                        int  VBIOS          ; put character in AL at next cursor position
+   189 000000C6 EBF7                        jmp short .print_char
+   190                                  .endstr:
+   191 000000C8 58                        pop ax
+   192 000000C9 C3                        ret
+   193                                  
+   194                                  
+   195                                  ; reset_disk
+   196                                  reset_disk:
+   197 000000CA 8A16[FC01]                mov dl, [bootdrv]
+   198 000000CE 30E4                      zero (ah)
+   199 000000D0 B000                      mov al, disk_reset
+   200 000000D2 CD13                      int DBIOS
+   201 000000D4 C3                        ret
+   202                                  
+   203                                  ; read_disk
+   204                                  read_disk:
+   205 000000D5 B90300                    mov cx, tries        ; set count of attempts for disk reads
+   206                                    .try_read:
+   207 000000D8 51                          push cx
+   208 000000D9 B90300                      mov cx, tries      ; set count of attempts to reset disk
+   209                                      .try_reset:
+   210 000000DC E8EBFF                        call reset_disk
+   211 000000DF 7308                          jnc short .read
+   212 000000E1 E2F9                          loop .try_reset       ; if the reset fails, continue trying for up to three times
+   213 000000E3 B80100                        mov ax, reset_failure ; if all three attempts fail, set an error code and return
+   214 000000E6 59                            pop cx                ; make sure that the stack is correctly aligned
+   215 000000E7 EB25                          jmp short .end_fail
+   216                                    .read:
+   217 000000E9 B80010                      mov ax, stage2_base
+   218 000000EC 8EC0                        mov es, ax
+   219 000000EE 8A16[FC01]                  mov dl, [bootdrv] 
+   220 000000F2 B500                        mov ch, cyl          ; cylinder
+   221 000000F4 B600                        mov dh, head         ; head
+   222 000000F6 B102                        mov cl, startsector  ; first sector 
+   223 000000F8 B001                        mov al, numsectors   ; number of sectors to load   
+   224 000000FA B402                        mov ah, disk_read
+   225 000000FC BB0000                      mov bx, stage2_offset
+   226 000000FF CD13                        int DBIOS
+   227 00000101 7308                        jnc short .end_success
+   228 00000103 59                          pop cx
+   229 00000104 E2D2                      loop .try_read
+   230 00000106 B80200                    mov ax, read_failure ; if all attempt to read the disk fail, report error code
+   231 00000109 EB03                      jmp short .end_fail
+   232                                  .end_success:
+   233 0000010B 59                        pop cx               ; make sure that the stack is correctly aligned
+   234 0000010C 31C0                      zero(ax)
+   235                                  .end_fail:
+   236 0000010E C3                        ret
+   237                                     
+   238                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   239                                  ;; data
+   240 0000010F 56657262756D20626F-     testnumber	db 'Verbum bootloader v0.02.0', CR, LF, NULL
+   241 00000118 6F746C6F6164657220-
+   242 00000121 76302E30322E300D0A-
+   243 0000012A 00                 
+   244 0000012B 526573657474696E67-     reset           db 'Resetting disk drive.', CR, LF, NULL
+   245 00000134 206469736B20647269-
+   246 0000013D 76652E0D0A00       
+   247 00000143 4C6F6164696E672073-     loading         db 'Loading stage two... ', NULL
+   248 0000014C 746167652074776F2E-
+   249 00000155 2E2E2000           
+   250 00000159 646F6E652E0D0A00        done            db 'done.', CR, LF, NULL
+   251 00000161 5365636F6E64207374-     snd_stage	db  'Second stage loaded, proceeding to switch context.', CR, LF, NULL
+   252 0000016A 616765206C6F616465-
+   253 00000173 642C2070726F636565-
+   254 0000017C 64696E6720746F2073-
+   255 00000185 776974636820636F6E-
+   256 0000018E 746578742E0D0A00   
+   257 00000196 436F6E74726F6C2072-     returned	db 'Control returned to first stage, ', NULL
+   258 0000019F 657475726E65642074-
+   259 000001A8 6F2066697273742073-
+   260 000001B1 746167652C2000     
+   261 000001B8 436F756C64206E6F74-     reset_failed	db 'Could not reset drive,', NULL
+   262 000001C1 207265736574206472-
+   263 000001CA 6976652C00         
+   264 000001CF 636F756C64206E6F74-     read_failed	db  'could not read second stage, ', NULL
+   265 000001D8 207265616420736563-
+   266 000001E1 6F6E64207374616765-
+   267 000001EA 2C2000             
+   268 000001ED 73797374656D206861-     exit            db 'system halted.', NULL
+   269 000001F6 6C7465642E00       
+   270                                  
+   271 000001FC 00                      bootdrv	        db 0x00  ; byte reserved for boot drive ID number
+   272                                  
+   273                                  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   274                                  ;; pad out to 510, and then add the last two bytes needed for a boot disk
+   275                                  
+   276 000001FD 00                      space   times (0x0200 - 2) - ($-$$) db 0
+   277 000001FE 55AA                    bootsig   dw 0xAA55 
