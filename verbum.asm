@@ -15,7 +15,8 @@
 ;               *  moved existing disk handling into separate functions
 ; v0.03 - 7 Sept 2006 Joseph Osako
 ;               * resumed work on project. Placed source files under
-;                 version control (SVN) 	
+;                 version control (SVN)
+; v0.04 - 18 April 2016 - restarting project, set up on Github
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	
 ;;constants
@@ -30,25 +31,25 @@ stack_seg  	equ 0x9000
 stack_top	equ 0xFFFC
 
 VBIOS	        equ 0x10        ; BIOS interrupt vector for video services
-GOTO_XY         equ 0x02        ; go to the given x, y coordinates
-block_write     equ 0x09        ; write a fixed number of times to the screen
-ttype	        equ 0x0E        ; print character, teletype mode
-NULL	        equ 0x00        ; end of string marker
-CR	        equ 0x0D        ; carriage return
-LF	        equ 0x0A        ; line feed 
+GOTO_XY         equ 0x02        ; VBIOS routine - go to the given x, y coordinates
+block_write     equ 0x09        ; VBIOS routine - write a fixed number of times to the screen
+ttype	        equ 0x0E        ; VBIOS routine - print character, teletype mode
 
 DBIOS	        equ 0x13        ; BIOS interrupt vector for disk services
 disk_reset	equ 0x00        ; disk reset service
 disk_read	equ 0x02        ; disk read service
-tries           equ 0x03        ; number of times to attempt to access the FDD
+
+;  BIOS error codes
 reset_failure   equ 0x01        ; error code returned on disk reset failure
 read_failure    equ 0x02        ; error code returned on disk read failure
 
-cyl             equ 0x00        ; cylinder to read from
-head	        equ 0x00        ; head to read from
-startsector	equ 0x02        ; sector to start reading at
-numsectors	equ 0x01        ; number of sectors to read
+; operational constants 
+tries           equ 0x03        ; number of times to attempt to access the FDD
 
+;  character constants
+NULL	        equ 0x00        ; end of string marker
+CR	        equ 0x0D        ; carriage return
+LF	        equ 0x0A        ; line feed 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; macros
@@ -63,6 +64,7 @@ numsectors	equ 0x01        ; number of sectors to read
 
 [bits 16]
 [org boot_offset]
+[section text]
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; entry - the entrypoint to the code. Make a short jump passed the BPB.
 entry:
@@ -70,7 +72,7 @@ entry:
   nop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 ; FAT12 Boot Parameter Block - required by filesystem
-OEM_ID                  db "Verb0.03"
+OEM_ID                  db "Verb0.04"
 Bytes_Per_Sector	dw 0x0200
 Sectors_Per_Cluster	db 0x01
 Reserved_Sectors	dw 0x0001
@@ -85,7 +87,6 @@ Hidden_Sectors	        dd 0x00000000
 Sectors_Long		dd 0x00000000
 Sectors_Per_FAT_Long	dd 0x00000000
 Extension_Flags	        dw 0x0000
-
 ; extended BPB section
 Drive_Number		db 0x00
 Current_Head		db 0x00
@@ -209,10 +210,10 @@ read_disk:
     mov ax, stage2_base
     mov es, ax
     mov dl, [bootdrv] 
-    mov ch, cyl          ; cylinder
-    mov dh, head         ; head
-    mov cl, startsector  ; first sector 
-    mov al, numsectors   ; number of sectors to load   
+    mov ch, [cyl]           ; cylinder
+    mov dh, [head]          ; head
+    mov cl, [startsector]   ; first sector 
+    mov al, [numsectors]    ; number of sectors to load   
     mov ah, disk_read
     mov bx, stage2_offset
     int DBIOS
@@ -229,6 +230,8 @@ read_disk:
 	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
+	
+[section data]
 loading         db 'Loading stage two... ', NULL
 done            db 'done.', CR, LF, NULL
 snd_stage	db 'Second stage loaded, proceeding to switch context.', CR, LF, NULL
@@ -237,8 +240,14 @@ reset_failed	db 'Could not reset drive,', NULL
 read_failed	db 'Could not read second stage, ', NULL
 exit            db ' system halted.', NULL
 
-bootdrv	        resb 1  ; byte reserved for boot drive ID number
+bootdrv	        resb 1      ; byte reserved for boot drive ID number
 
+; DBIOS arguments, values given are defaults
+cyl             db 0        ; cylinder to read from
+head	        db 0        ; head to read from
+startsector	db 2        ; sector to start reading at
+numsectors	db 1        ; number of sectors to read
+	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; pad out to 510, and then add the last two bytes needed for a boot disk
 

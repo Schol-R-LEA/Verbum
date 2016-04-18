@@ -1,17 +1,19 @@
-ASM = nasm -f bin -l
+ASM = nasm -f bin
 COPY = dd
-RUN = bochs
+LIST1 = verbum.lst
+LIST2 = stagetwo.lst
+STAGE1 = verbum.asm
+STAGE2 = stagetwo.asm
+TARGET1 = verbum.bin
+TARGET2 = stagetwo.bin
+DISKTARGET = boot.img
 
-boot.img: verbum.bin stagetwo.bin
-	$(COPY) if=verbum.bin of=boot.img
-	$(COPY) if=stagetwo.bin of=boot.img seek=1
-	$(RUN)
+$(DISKTARGET): $(TARGET1) $(TARGET2)
+	$(COPY) if=$(TARGET1) of=$(DISKTARGET)
+	$(COPY) if=$(TARGET2) of=$(DISKTARGET) seek=1
 
-verbum.bin:
-	$(ASM) verbum.asm -o verbum.bin
+$(TARGET1):
+	$(ASM) $(STAGE1) -o $(TARGET1) -l $(LIST1)
 
-stagetwo.bin:
-	$(ASM) stagetwo.asm -o stagetwo.bin
-
-
-	
+$(TARGET2):
+	$(ASM)  $(STAGE2) -o $(TARGET2) -l $(LIST2)

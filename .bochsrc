@@ -1,0 +1,34 @@
+###############################################################
+# bochsrc.txt file for Verbum disk image.
+###############################################################
+
+#plugin_ctrl: unmapped=0, e1000=1 # unload 'unmapped' and load 'e1000'
+
+# how much memory the emulated machine will have
+memory: guest=32, host=64
+
+cpu: count=1, ips=100000000
+
+# filename of ROM images
+romimage: file="$BXSHARE/BIOS-bochs-latest"
+vgaromimage: file="$BXSHARE/VGABIOS-lgpl-latest"
+vga: extension=vbe
+
+#ne2k: ioaddr=0x300, irq=0x0a, mac=b0:c4:20:00:00:00, ethmod=linux, ethdev=enp6s0
+
+#display configuration and library
+config_interface: wx
+display_library: wx
+
+# what disk images will be used
+floppya: 1_44="boot.img", status=inserted
+
+# choose the boot disk.
+boot: floppy
+
+# where do we send log messages?
+log: bochsout.txt
+
+mouse: enabled=0
+
+#magic_break: enabled=1
