@@ -4,93 +4,67 @@
 ;; v 0.01  Joseph Osako 3 June 2002
 ;; v 0.02  Joseph Osako 7 Sept 2006
 ;;         * restarted project, files place under source control.
-;;         * Modifications for FAT12 based loader begun. 
-;;
-;; 
+;;         * Modifications for FAT12 based loader begun.
+;;;Version History (note: build versions not shown) 
+;;;pre      - June 2002 to February 2004 - early test versions
+;;;               * sets segments, loads image from second sector          
+;;;v 0.01 - 28 February 2004 Joseph Osako 
+;;;              * Code base cleaned up
+;;;              * Added BPB data for future FAT12 support
+;;;              * renamed "Verbum Boot Loader"
+;;;v0.02 - 8 May 2004 Joseph Osako
+;;;              *  moved existing disk handling into separate functions
+;;;v0.03 - 7 Sept 2006 Joseph Osako
+;;;              * resumed work on project. Placed source files under
+;;;                version control (SVN)
+;;;v0.04 - 18 April 2016 - restarting project, set up on Github
+;;;v0.05 - 16 August 2017 - restructuring project, working on FAT12
+;;;              support and better documentation
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-%define stage2_base 0x1000      ; the segment:offset to load 
-%define stage2_offset 0x0000	; the second stage into
-	
-VBIOS	        equ 0x10        ; BIOS interrupt vector for video services
-set_cursor      equ 0x02        ; set the cursor to the given x,y coordinates
-set_page_mode   equ 0x03
-set_active_page equ 0x05
-read_cursor     equ 0x08
-write_cursor    equ 0x09
-ttype	        equ 0x0E        ; print character, teletype mode	
-NULL	        equ 0x00        ; end of string marker
-CR	        equ 0x0D        ; carriage return
-LF	        equ 0x0A        ; line feed 
+%include "bios.inc"
+%include "consts.inc"
 
-DBIOS	        equ 0x13        ; BIOS interrupt vector for disk services
-disk_reset	equ 0x00        ; disk reset service
-disk_read	equ 0x02        ; disk read service
-tries           equ 0x03        ; number of times to attempt to access the FDD
-reset_failure   equ 0x01        ; error code returned on disk reset failure
-read_failure    equ 0x02        ; error code returned on disk read failure
+stage2_base     equ 0x07c0     ; the segment:offset to load 
+stage2_offset   equ 0x0400      ; the second stage into
 
-cyl             equ 0x00        ; cylinder to read from
-head	        equ 0x00        ; head to read from
-startsector	equ 0x02        ; sector to start reading at
-numsectors	equ 0x01        ; number of sectors to read
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; macros
-;	
-%define zero(x) xor x, x
-			
-%macro write 1
-   mov si, %1
-   call printstr
-%endmacro
-
-[bits 16]
-[org stage2_offset]
-	
+                        
+        [bits 16]
+        [org stage2_offset]
+        [section .text]
+        
 entry:
-   mov ax, cs
-   mov ds, ax
-   write success
-;  jmp $
-  ; 'return' to the first stage via a faked call frame set up earlier
-  retf
+        ;; pop the pointer to printstr function
+        ;; pop ax                
+        ;; mov si, success
+        ;; call ax
 
+        ;; ;; pop off the address for the halt routine
+        ;; pop bx
+        ;; jmp bx
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Auxilliary functions      
+        mov di, [success]
+        mov ah, ttype        ; set function to 'teletype mode'
+        xor bx, bx
+        mov cx, 1
+ .print_char:
+        lodsb               ; update byte to print
+        cmp al, NULL        ; test that it isn't NULL
+        jz short .endstr
+        int  VBIOS          ; put character in AL at next cursor position
+        jmp short .print_char
+  .endstr:
 
-;; printstr - prints the string point to by SI
+halted:
+        hlt
+        jmp short halted
 
-printstr:
-  push ax
-  mov ah, ttype        ; set function to 'teletype mode'
-  .print_char:   
-    lodsb               ; update byte to print
-    cmp al, NULL        ; test that it isn't NULL
-    jz short .endstr
-    int  VBIOS          ; put character in AL at next cursor position
-    jmp short .print_char
-.endstr:
-  pop ax
-  ret
-
-
-; reset_disk
-reset_disk:
-  mov dl, [bootdrv]
-  zero (ah)
-  mov al, disk_reset
-  int DBIOS
-  ret
-
-	
+        
+        
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
+        ;;         [section .data]
+
 success   db 'Control successfully transferred to second stage.', CR, LF, NULL
 
-bootdrv	  db 0x00  ; byte reserved for boot drive ID number
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; pad out to 512
 
-space   times 0x0200 - ($-$$) db 0 
