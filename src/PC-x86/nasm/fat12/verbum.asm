@@ -26,47 +26,33 @@
 %include "consts.inc"
 %include "bpb.inc"
 %include "fat_entry.inc"
+%include "stage2_parameters.inc"
+%include "macros.inc"
 
+
+;;; local macros 
+%macro write 1
+        push si
+        mov si, %1
+        call near print_str
+        pop si
+%endmacro
         
-struc disk_parameters
-        .drive resb 1
-        .cylinder resb 1
-        .head resb 1
-        .sector resb 1
-endstruc
-
    
 ;;; constants
-
 boot_base       equ 0x07C0      ;; the segment base:offset pair for the
 boot_offset     equ 0x0000      ;; boot code entrypoint
 
 stack_segment   equ boot_base - 0x0200        
-stack_top       equ 0xFFFC
+stack_top       equ 0xFFFE - stg2_parameters_size
 
 fat_start       equ 2
-fat_size        equ 0x0009      ;; number of sectors per FAT
-reserved_size   equ 1 + (2 * fat_size)   
-disk_type       equ 0xF0        ;; default - 3.5" 1.44M
 
 stage2_size     equ 1
 loaded_fat      equ boot_offset + 0x0200
 
 ;;;operational constants 
 tries           equ 0x03        ;; number of times to attempt to access the FDD
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; macros
-;
-%define zero(x) xor x, x
-
-%macro write 1
-        push si
-        mov si, %1
-        call near printstr
-        pop si
-%endmacro
         
         
 [bits 16]
@@ -102,8 +88,8 @@ istruc BPB
     at BPB.Current_Head,          db 0x00
     at BPB.BPB_Signature,         db 0x28 
     at BPB.Serial_Number,         dd 0x000001
-    at BPB.Disk_Label,            db "Verbum Boot"    ;;;must be exactly 11 characters
-    at BPB.File_System,            db "FAT12   "       ;;;must be exactly 8 characters
+    at BPB.Disk_Label,            db "Verbum Boot"    ; must be exactly 11 characters
+    at BPB.File_System,           db "FAT12   "       ; must be exactly 8 characters
 iend
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -124,17 +110,37 @@ start:
         mov ss, ax              ; set to match the code segment
         mov sp, stack_top       ; put the stack pointer to the top of SS
         sti                     ; reset ints so BIOS calls can be used
-        mov bp, sp
+
+        ;; set the remaining segment registers to match CS
         mov ax, cs
-        mov ds, ax              ; set DS == CS
-        mov es, ax              ; set ES == CS
-        ; save boot drive info for later use
-        push dx
+        mov ds, ax
+        mov es, ax
+        mov gs, ax
+
+        ;; any other housekeeping that needs to be done at the start
+        cld
+        
+        ;; set up a stack frame for the disk info
+        ;;  and other things passed by the boot sector
+        mov bp, sp
+
+        ;; find the start of the stage 2 parameter frame
+        ;;  and populated the frame
+        mov bx, [bp + stg2_parameters_size]
+        ;; mov [bx - stg2_parameters.drive], byte dl
+        ;; mov [bx - stg2_parameters.p_fat_sect_1], word loaded_fat
+        ;; mov [bx - stg2_parameters.p_reset_drive], word reset_disk
+        ;; mov [bx - stg2_parameters.p_read_drive], word read_disk
+        ;; mov [bx - stg2_parameters.p_print_str], word print_str
+        ;; mov [bx - stg2_parameters.p_halt_loop], word halted
 
 ;;; reset the disk drive
         write resetting_drive
         call near reset_disk
         write done
+
+        ;; magic breakpoint for BOCHS
+        ;; xchg bx, bx
         
 ;;; read in the first sector of the FAT from disk
 ;;; and load it after the boot code. the DL register
@@ -143,16 +149,18 @@ start:
         mov bx, loaded_fat
         mov al, 1
         mov cl, fat_start
-        mov ch, 0
-        mov dh, 0
-        ;;  make sure we have the right disk information
-        pop dx
-        push dx       
+        zero(ch)
+        zero(dh)
+        ;;  make sure we have the right disk information 
         call near read_disk
+
+        ;; magic breakpoint for BOCHS
+        ;; xchg bx, bx
         
 ;;; get the location of the next stage of the boot loader
 ;;; and read a fixed number of consecutive sectors at
 ;;; a location
+        
         mov ax, [loaded_fat + fat_entry.cluster_lobits]
         zero(dx)
         mov cx, [boot_bpb + BPB.Sectors_Per_Cylinder]
@@ -161,13 +169,15 @@ start:
         ;;  get adjusted sector number into CX
         mov cx, ax
         
-        
         ;; sanity check - is the loaded value valid?
         call print_hex
         mov al, dl
         call print_hex
         write done
 
+        ;; magic breakpoint for BOCHS
+        ;; xchg bx, bx
+              
         ;; load the located sector after the end of the loaded
         ;; FAT - while we could probably overwrite the FAT sector,
         ;; there is no reason not to preserve it.
@@ -180,7 +190,7 @@ start:
         write done
         
 ;;; pass a pointer to 'spin' loop
-;;; and the printstr routine
+;;; and the print_str routine
 ;;; and jump to loaded second stage
 
         mov al, bh
@@ -190,8 +200,9 @@ start:
         mov al, bl
         call print_hex     
 
-        push halted
-        push printstr
+        ;; magic breakpoint for BOCHS
+        ;; xchg bx, bx
+       
         jmp bx
 
 ;;;  backstop - it shouldn't actully print this message
@@ -204,12 +215,10 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 
-;;;;printstr - prints the string point to by SI
+;;;;print_str - prints the string point to by SI
 
-printstr:
-        push ax
-        push bx
-        push cx
+print_str:
+        pusha
         mov ah, ttype        ; set function to 'teletype mode'
         zero(bx)
         mov cx, 1
@@ -220,9 +229,7 @@ printstr:
         int  VBIOS          ; put character in AL at next cursor position
         jmp short .print_char
     .endstr:
-        pop cx
-        pop bx
-        pop ax
+        popa
         ret
 
 ;;;reset_disk
@@ -244,7 +251,7 @@ reset_disk:
 
 ;;; read_disk
 read_disk:
-        push ax
+        pusha
         mov si, 0
         mov di, tries        ; set count of attempts for disk reads
         mov ah, disk_read
@@ -259,45 +266,38 @@ read_disk:
         jmp halted
         
   .read_end:
-        pop ax
+        popa
         ret
 
 print_hex:
 ;;;  al = byte to print
-        push ax
-        push bx
-        push cx
-        push dx
-        
-        mov cx, 2
-        mov ah, al              ; have a copy of the byte in each half reg
-        and ah, 0x0f            ; isolate low nibble in AH
-        shr al, 4               ; isolate high nibble into low nibble in AL
-  .nibble_loop:
-        cmp al, 9
-        jg .alphanum
-	add al, 0x30
-        jmp short .store_char
-  .alphanum:
-        add al, (0x41 - 0xA)    ; NASM will compute imm. value
-  
-  .store_char:
-        ror ax, 8               ; fast move AH -> AL
-        loop .nibble_loop
-
-        ;; AL == high numeral, AH == low numeral
-        mov dl, ah 
+        pusha
         mov ah, ttype           ; set function to 'teletype mode'
         zero(bx)
         mov cx, 1
+        zero(dh)
+        mov dl, al              ; have a copy of the byte in DL
+        and dl, 0x0f            ; isolate low nibble in DL
+        shr al, 4               ; isolate high nibble into low nibble in AL
+        cmp al, 9
+        jg short .alphanum_hi
+	add al, ascii_zero
+        jmp short .show_hi
+  .alphanum_hi:
+        add al, upper_numerals 
+  .show_hi:
         int VBIOS
         mov al, dl
+        cmp al, 9
+        jg short .alphanum_lo
+	add al, ascii_zero
+        jmp short .show_lo
+  .alphanum_lo:
+        add al, upper_numerals  
+  .show_lo:
         int VBIOS
 
-        pop dx
-        pop cx
-        pop bx
-        pop ax
+        popa
         ret
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

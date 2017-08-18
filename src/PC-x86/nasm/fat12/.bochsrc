@@ -17,7 +17,7 @@ vga: extension=vbe
 #ne2k: ioaddr=0x300, irq=0x0a, mac=b0:c4:20:00:00:00, ethmod=linux, ethdev=enp6s0
 
 #display configuration and library
-config_interface: wx
+config_interface: textconfig
 display_library: wx
 
 # what disk images will be used
@@ -31,4 +31,4 @@ log: bochsout.txt
 
 mouse: enabled=0
 
-#magic_break: enabled=1
+magic_break: enabled=1
