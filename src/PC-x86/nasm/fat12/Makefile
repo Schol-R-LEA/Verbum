@@ -12,8 +12,8 @@ DISKSIZE = 1440
 build: boot stage2
 	$(COPY) if=/dev/zero of=$(DISKTARGET) count=$(DISKSIZE) bs=1k
 	$(COPY) if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc
-	$(COPY) if=$(FAT).bin of=$(DISKTARGET) seek=1 count=1 conv=notrunc		
-	$(COPY) if=$(FAT).bin of=$(DISKTARGET) seek=$(FAT2_SEEK) count=1 conv=notrunc
+	$(COPY) if=$(FAT) of=$(DISKTARGET) seek=1 count=1 conv=notrunc		
+	$(COPY) if=$(FAT) of=$(DISKTARGET) seek=$(FAT2_SEEK) count=1 conv=notrunc
 	$(COPY) if=$(STAGE_TWO).bin of=$(DISKTARGET) seek=$(STG2_SEEK) count=$(STG2SIZE) conv=notrunc
 
 boot:
