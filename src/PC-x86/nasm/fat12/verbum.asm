@@ -32,10 +32,8 @@
 
 ;;; local macros 
 %macro write 1
-        push si
         mov si, %1
         call near print_str
-        pop si
 %endmacro
         
    
@@ -69,27 +67,29 @@ entry:
 
 boot_bpb:
 istruc BPB
-    at BPB.OEM_ID,                db "Verb0.05"
-    at BPB.Bytes_Per_Sector,      dw 0x0200
-    at BPB.Sectors_Per_Cluster,   db 0x01
-    at BPB.Reserved_Sectors,      dw 19
-    at BPB.FATs,                  db 0x02
-    at BPB.Root_Entries,          dw 0x00E0
-    at BPB.Sectors_Short,         dw 0x0B40
-    at BPB.Media_Descriptor,      db 0xf0      ; set at assembly time
-    at BPB.Sectors_Per_FAT_Short, dw 9
-    at BPB.Sectors_Per_Cylinder,  dw 0x0012
-    at BPB.Heads,                 dw 0x02
-    at BPB.Hidden_Sectors,        dd 0x00000000
-    at BPB.Sectors_Long,          dd 0x00000000
-    at BPB.Sectors_Per_FAT_Long,  dd 0x00000000
-    at BPB.Extension_Flags,       dw 0x0000
-    at BPB.Drive_Number,          db 0x00
-    at BPB.Current_Head,          db 0x00
-    at BPB.BPB_Signature,         db 0x28 
-    at BPB.Serial_Number,         dd 0x000001
-    at BPB.Disk_Label,            db "Verbum Boot"    ; must be exactly 11 characters
-    at BPB.File_System,           db "FAT12   "       ; must be exactly 8 characters
+    at BPB.OEM_ID,                    db "VERBUM_5"
+    at BPB.Bytes_Per_Sector,          dw 0x0200
+    at BPB.Sectors_Per_Cluster,       db 0x01
+    at BPB.Reserved_Sectors,          dw 0x01
+    at BPB.FATs,                      db 0x02
+    at BPB.Root_Entries,              dw 0x00e0
+    at BPB.Sectors_Short,             dw 0x0b40
+    at BPB.Media_Descriptor,          db 0xf0      ; set at assembly time
+    at BPB.Sectors_Per_FAT_Short,     dw 9
+    at BPB.Sectors_Per_Cylinder,      dw 0x0012
+    at BPB.Heads,                     dw 0x0002
+    at BPB.Hidden_Sectors,            dd 0x00000000
+    at BPB.Sectors_Long,              dd 0x00000000
+iend
+        
+disk_info:
+istruc Disk_Details
+    at Disk_Details.Drive_Number,     db 0x00
+    at Disk_Details.Extension_Flags,  db 0x00
+    at Disk_Details.Signature,        db 0x29
+    at Disk_Details.Serial_Number,    dd 0x000001
+    at Disk_Details.Disk_Label,       db "VERBUM-0.5 "    ; must be exactly 11 characters
+    at Disk_Details.File_System,      db "FAT12   "       ; must be exactly 8 characters
 iend
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -126,13 +126,28 @@ start:
 
         ;; find the start of the stage 2 parameter frame
         ;;  and populated the frame
+
+        mov ax, [boot_bpb + BPB.Sectors_Per_Fat]
+        mov cx, loaded_fat
         mov bx, [bp + stg2_parameters_size]
-        ;; mov [bx - stg2_parameters.drive], byte dl
-        ;; mov [bx - stg2_parameters.p_fat_sect_1], word loaded_fat
-        ;; mov [bx - stg2_parameters.p_reset_drive], word reset_disk
-        ;; mov [bx - stg2_parameters.p_read_drive], word read_disk
-        ;; mov [bx - stg2_parameters.p_print_str], word print_str
-        ;; mov [bx - stg2_parameters.p_halt_loop], word halted
+        mov [bx - stg2_parameters.drive], byte dl
+        mov [bx - stg2_parameters.bpb], word boot_bpb
+        mov [bx - stg2_parameters.fat_0], cx
+        ;; Compute the address of the second FAT.
+        ;; we can use a bit of a trick here: since the
+        ;; allowed values of the sector size as
+        ;; 200, 400, 800, and 1000, we can multiply
+        ;; the upper 9 bits of the size by the # of
+        ;; sectors to get an offset for the second FAT.        
+        mov dx, [boot_bpb + BPB.Bytes_Per_Sector]
+        shl dh, 1
+        mul dh
+        add cx, ax
+        mov [bx - stg2_parameters.fat_1], cx
+        ;; mov [bx - stg2_parameters.reset_drive], word reset_disk
+        ;; mov [bx - stg2_parameters.read_drive], word read_disk
+        ;; mov [bx - stg2_parameters.print_str], word print_str
+        ;; mov [bx - stg2_parameters.halt_loop], word halted
 
 ;;; reset the disk drive
         write resetting_drive
@@ -147,7 +162,8 @@ start:
 ;;; should still have the correct drive value.
         write reading_fat
         mov bx, loaded_fat
-        mov al, 1
+        ;; calculate the number of sectors for both FATs
+        mov al, [boot_bpb + BPB.Sectors_Per_FAT_Short]
         mov cl, fat_start
         zero(ch)
         zero(dh)
@@ -158,44 +174,39 @@ start:
         ;; xchg bx, bx
         
 ;;; get the location of the next stage of the boot loader
+        
+
+        
 ;;; and read a fixed number of consecutive sectors at
 ;;; a location
         
-        mov ax, [loaded_fat + fat_entry.cluster_lobits]
-        zero(dx)
-        mov cx, [boot_bpb + BPB.Sectors_Per_Cylinder]
-        div cx
-
-        ;;  get adjusted sector number into CX
-        mov cx, ax
         
         ;; sanity check - is the loaded value valid?
         call print_hex
+        write separator
         mov al, dl
         call print_hex
-        write done
+        write comma_done
 
         ;; magic breakpoint for BOCHS
         ;; xchg bx, bx
               
         ;; load the located sector after the end of the loaded
         ;; FAT - while we could probably overwrite the FAT sector,
-        ;; there is no reason not to preserve it.
-        write loading
+        ;; there is no reason not to preserve it. 
+       write loading
         mov al, stage2_size
         ;;  make sure we have the right disk information
         mov dx, [bp - 2]
         add bx, 0x200
-        call near read_disk       
+        call near read_sectors
         write done
         
-;;; pass a pointer to 'spin' loop
-;;; and the print_str routine
-;;; and jump to loaded second stage
-
-        mov al, bh
-        ;; sanity check - is the loaded value valid?
+;;; jump to loaded second stage
         write stg2_jump
+
+        ;; sanity check - is the loaded value valid?
+        mov al, bh
         call print_hex
         mov al, bl
         call print_hex     
@@ -203,9 +214,10 @@ start:
         ;; magic breakpoint for BOCHS
         ;; xchg bx, bx
        
-        jmp bx
+        jmp short halted
 
-;;;  backstop - it shouldn't actully print this message
+
+;;;  backstop - it shouldn't ever actually print this message
         write oops
         
 halted:
@@ -243,14 +255,16 @@ reset_disk:
         dec di
         jnz .try_reset
         ;;; if repeated attempts to reset the disk fail, report error code
+        write failure_state
         write reset_failed
         write exit
         jmp halted
   .reset_end:
         ret
-
-;;; read_disk
-read_disk:
+   
+        
+;;; read_sectors
+read_sectors:
         pusha
         mov si, 0
         mov di, tries        ; set count of attempts for disk reads
@@ -261,8 +275,8 @@ read_disk:
         dec di
         jnz .try_read
         ; if repeated attempts to read the disk fail, report error code
-        write read_failed
-        write exit
+        write failure_state
+        write read_failed    ; fall-thru to 'exit', don't needs separate write
         jmp halted
         
   .read_end:
@@ -307,16 +321,17 @@ print_hex:
 ;;; [section .rodata]
         
 resetting_drive db 'Reset drive...', NULL
-reading_fat     db 'Get 2nd stage...', NULL
-seperator       db ':', NULL  
-loading         db 'Load second stage...', NULL
-done            db ' done.', CR, LF, NULL
-stg2_jump       db 'Jumping to ', NULL
-        
-reset_failed    db 'Could not reset,', NULL
-read_failed     db 'Could not read,', NULL
+reading_fat     db 'Get sector...', NULL
+loading         db 'Load 2nd stage...', NULL
+stg2_jump       db 'entering OS at ', NULL
+separator       db ':', NULL
+comma_done      db ', '
+done            db 'done.', CR, LF, NULL
+failure_state   db 'Could not ', NULL
+reset_failed    db 'reset,', NULL
+read_failed     db 'read,'
 exit            db ' boot loader halted.', NULL
-oops            db 'Oops. ', NULL 
+oops            db 'Oops.', NULL 
 
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

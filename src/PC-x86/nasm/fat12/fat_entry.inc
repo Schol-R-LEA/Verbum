@@ -1,11 +1,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; FAT directory entry - required by FAT filesystems.
+;;; directory entry - required by FAT filesystems.
 ;;; Header defining a NASM structure describing the FAT filesystem
 ;;; directory entries. It has been separated to allow it to be
 ;;; used separately from the boot sector code.
 
         
-struc fat_entry
+struc diretory_entry
         .filename        resb 8
         .extension       resb 3
         .attribs         resb 1
