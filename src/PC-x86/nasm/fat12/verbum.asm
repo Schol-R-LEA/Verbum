@@ -82,6 +82,7 @@ start:
         sti                     ; reset ints so BIOS calls can be used
 
         ;; set the remaining segment registers to match CS
+        mov bx, es              ; save segment part of the PnP ptr
         mov ax, cs
         mov ds, ax
         mov es, ax
@@ -91,10 +92,11 @@ start:
 
         ;; find the start of the stage 2 parameter frame
         ;;  and populated the frame
-;        mov cx, fat_buffer
+        mov cx, fat_buffer
         mov [bp + stg2_parameters.drive], dx
-        mov [bp + stg2_parameters.bpb], word boot_bpb
-;        mov [bp + stg2_parameters.fat_0], cx
+        mov [bp + stg2_parameters.fat_0], cx
+        mov [bp + stg2_parameters.PnP_Entry_Seg], bx
+        mov [bp + stg2_parameters.PnP_Entry_Off], di
         mov [bp + stg2_parameters.reset_drive], word reset_disk
         mov [bp + stg2_parameters.read_sectors], word read_sectors
         mov [bp + stg2_parameters.print_str], word print_str
@@ -107,7 +109,7 @@ start:
         
         ;; load the second stage code
         write loading
-        mov dx, [bp + stg2_parameters.drive]
+;        mov dx, [bp + stg2_parameters.drive]
         mov al, stage2_size
         mov dh, stage2_head
         mov ch, stage2_track
@@ -120,7 +122,6 @@ start:
         write stage2_jump
         jmp stage2_buffer
 
-       
         jmp short halted
 
 
@@ -233,7 +234,7 @@ snd_stage_filename db 'STAGE2  SYS'
 
 ; reading_fat     db 'Get sector...', NULL
 loading         db 'Load 2nd stage...', NULL
-stage2_jump     db 'entering OS at ', NULL
+stage2_jump     db 'entering OS... ', NULL
 ;separator       db ':', NULL
 comma_done      db ', '
 done            db 'done.', CR, LF, NULL

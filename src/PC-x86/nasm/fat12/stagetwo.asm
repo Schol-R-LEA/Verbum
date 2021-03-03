@@ -28,27 +28,55 @@
 
 stage2_base     equ 0x0000     ; the segment:offset to load 
 stage2_offset   equ 0x7E00     ; the second stage into
-
                         
-        [bits 16]
-        [org stage2_offset]
-        [section .text]
+[bits 16]
+[org stage2_offset]
+[section .text]
         
 entry:
-        mov ax, [bp + stg2_parameters.print_str]  
-        mov si, [success]
-        call ax
+;        mov ax, [bp + stg2_parameters.print_str]  
+;        mov si, [success]
+;        call ax
+%macro write 1
+   mov si, %1
+   call printstr
+%endmacro
 
+        mov ax, cs
+        mov ds, ax
+        write success
+        jmp short halted
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Auxilliary functions      
+
+;; printstr - prints the string point to by SI
+
+printstr:
+        push ax
+        mov ah, ttype        ; set function to 'teletype mode'
+.print_char:   
+        lodsb               ; update byte to print
+        cmp al, NULL        ; test that it isn't NULL
+        jz short .endstr
+        int  VBIOS          ; put character in AL at next cursor position
+        jmp short .print_char
+.endstr:
+        pop ax
+        ret
+        
+
+        
 halted:
         hlt
         jmp short halted
-
+        
         
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 ;;         [section .data]
-
+        
 success   db 'Control successfully transferred to second stage.', CR, LF, NULL
 
 

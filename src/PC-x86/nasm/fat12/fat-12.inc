@@ -11,9 +11,9 @@ stage2_track    equ 0
 stage2_sector   equ 0x10
 stage2_size     equ 1
 
-;fat_buffer      equ boot_offset + 0x0200
-;dir_entry_size  equ 0x20        ; 32 bytes per entry
-;dir_buffer      equ fat_buffer + (Sectors_Per_FAT_Short * 0x200)
+fat_buffer      equ boot_offset + 0x0200
+dir_entry_size  equ 0x20        ; 32 bytes per entry
+dir_buffer      equ fat_buffer + (Sectors_Per_FAT_Short * 0x200)
 stage2_buffer   equ 0x7E00
 
 Bytes_Per_Sector          equ 0x0200
