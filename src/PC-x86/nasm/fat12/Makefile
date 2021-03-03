@@ -13,12 +13,14 @@ DISKTARGET = boot.img
 DISKSIZE = 1440
 
 install: boot stage2
-	$(COPY) if=/dev/zero of=$(DISKTARGET) count=$(DISKSIZE) bs=1k
+	dd if=/dev/zero of=$(DISKTARGET) count=$(DISKSIZE) bs=1k
 	$(FORMAT) $(DISKTARGET)
-	$(COPY) if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc
-	$(COPY) if=$(FAT) of=$(DISKTARGET) count=1 seek=1 conv=notrunc
-	$(COPY) if=$(FAT) of=$(DISKTARGET) count=1 seek=$(FAT2_SEEK) conv=notrunc 
-	$(COPY) if=$(STAGE_TWO).bin of=$(DISKTARGET) count=1 seek=$(STG2_SEEK) conv=notrunc
+	dd if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc
+	mkdir temp
+	sudo mount $(DISKTARGET) temp
+	sudo cp $(STAGE_TWO).bin temp/STAGE2.BIN
+	sudo umount temp
+	rmdir temp
 	$(REIMAGE) convert -f raw -O qcow2 boot.img boot.qcow2
 
 boot:

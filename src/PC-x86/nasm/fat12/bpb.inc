@@ -4,8 +4,8 @@
 ;;; BIOS Parameter Block. It has been separated to allow it to be
 ;;; used separately from the boot sector code.
 
-struc BPB 
-      .OEM_ID                  resb 8    ;;; must be exactly 8 characters  
+struc BPB
+       .OEM_ID                 resb 8    ;;; must be exactly 8 characters  
       .Bytes_Per_Sector        resb 2
       .Sectors_Per_Cluster     resb 1
       .Reserved_Sectors        resb 2
