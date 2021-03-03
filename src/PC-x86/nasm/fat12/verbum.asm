@@ -35,23 +35,24 @@
         mov si, %1
         call near print_str
 %endmacro
-        
-   
+
 ;;; constants
-boot_base       equ 0x07C0      ;; the segment base:offset pair for the
-boot_offset     equ 0x0000      ;; boot code entrypoint
+boot_base       equ 0x0000      ; the segment base:offset pair for the
+boot_offset     equ 0x7C00      ; boot code entrypoint
 
-stack_segment   equ boot_base - 0x0200        
-stack_top       equ 0xFFFE - stg2_parameters_size
+;; ensure that there is no segment overlap
+stack_segment   equ 0x1000  
+stack_top       equ 0xFFFE
 
-fat_start       equ 2
+fat_start       equ 2           ; first sector of the first FAT
+dir_start       equ 2           ; head 1, track 0, sector 2
 
-stage2_size     equ 1
-loaded_fat      equ boot_offset + 0x0200
+fat_buffer      equ boot_offset + 0x0200
+dir_entry_size  equ 0x20        ; 32 bytes per entry
 
 ;;;operational constants 
-tries           equ 0x03        ;; number of times to attempt to access the FDD
-        
+tries           equ 0x03        ; number of times to attempt to access the FDD
+
         
 [bits 16]
 [org boot_offset]
@@ -59,7 +60,7 @@ tries           equ 0x03        ;; number of times to attempt to access the FDD
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; entry - the entrypoint to the code. Make a short jump past the BPB.
 entry:
-        jmp short redirect
+        jmp short start
         nop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -67,7 +68,7 @@ entry:
 
 boot_bpb:
 istruc BPB
-    at BPB.OEM_ID,                    db "VERBUM_5"
+    at BPB.OEM_ID,                    db "VERBUM05"
     at BPB.Bytes_Per_Sector,          dw 0x0200
     at BPB.Sectors_Per_Cluster,       db 0x01
     at BPB.Reserved_Sectors,          dw 0x01
@@ -92,12 +93,6 @@ istruc Disk_Details
     at Disk_Details.File_System,      db "FAT12   "       ; must be exactly 8 characters
 iend
         
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;redirect - do a far jump to ensure that you have the desired 
-;;;  segment:offset location set in CS and IP
-redirect:
-  jmp boot_base:start
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -108,93 +103,74 @@ start:
         mov ax, stack_segment
         cli                     ;  ints out of an abundance of caution
         mov ss, ax              ; set to match the code segment
-        mov sp, stack_top       ; put the stack pointer to the top of SS
+        ;; set up a stack frame for the disk info
+        ;;  and other things passed by the boot sector
+        mov ax, stack_top
+        sub ax, stg2_parameters_size
+        mov sp, ax
+        mov bp, sp
         sti                     ; reset ints so BIOS calls can be used
 
         ;; set the remaining segment registers to match CS
         mov ax, cs
         mov ds, ax
         mov es, ax
-        mov gs, ax
 
         ;; any other housekeeping that needs to be done at the start
         cld
-        
-        ;; set up a stack frame for the disk info
-        ;;  and other things passed by the boot sector
-        mov bp, sp
 
         ;; find the start of the stage 2 parameter frame
         ;;  and populated the frame
-
-        mov ax, [boot_bpb + BPB.Sectors_Per_Fat]
-        mov cx, loaded_fat
-        mov bx, [bp + stg2_parameters_size]
-        mov [bx - stg2_parameters.drive], byte dl
-        mov [bx - stg2_parameters.bpb], word boot_bpb
-        mov [bx - stg2_parameters.fat_0], cx
-        ;; Compute the address of the second FAT.
-        ;; we can use a bit of a trick here: since the
-        ;; allowed values of the sector size as
-        ;; 200, 400, 800, and 1000, we can multiply
-        ;; the upper 9 bits of the size by the # of
-        ;; sectors to get an offset for the second FAT.        
-        mov dx, [boot_bpb + BPB.Bytes_Per_Sector]
-        shl dh, 1
-        mul dh
-        add cx, ax
-        mov [bx - stg2_parameters.fat_1], cx
-        ;; mov [bx - stg2_parameters.reset_drive], word reset_disk
-        ;; mov [bx - stg2_parameters.read_drive], word read_disk
-        ;; mov [bx - stg2_parameters.print_str], word print_str
-        ;; mov [bx - stg2_parameters.halt_loop], word halted
+        mov ax, [boot_bpb + BPB.Sectors_Per_FAT_Short]
+        mov cx, fat_buffer
+        mov [bp + stg2_parameters.drive], dx
+        mov [bp + stg2_parameters.bpb], word boot_bpb
+        mov [bp + stg2_parameters.fat_0], cx
+        mov [bp + stg2_parameters.reset_drive], word reset_disk
+        mov [bp + stg2_parameters.read_sectors], word read_sectors
+        mov [bp + stg2_parameters.print_str], word print_str
+        mov [bp + stg2_parameters.halt_loop], word halted
 
 ;;; reset the disk drive
-        write resetting_drive
         call near reset_disk
-        write done
 
-        ;; magic breakpoint for BOCHS
-        ;; xchg bx, bx
-        
-;;; read in the first sector of the FAT from disk
-;;; and load it after the boot code. the DL register
-;;; should still have the correct drive value.
-        write reading_fat
-        mov bx, loaded_fat
-        ;; calculate the number of sectors for both FATs
+;;; read in the FATs from disk and load it after
+;;; the boot code. the DL register should still have
+;;; the correct drive value.
+;;; The current value of AL should be the one needed here.
+;        write reading_fat
         mov al, [boot_bpb + BPB.Sectors_Per_FAT_Short]
-        mov cl, fat_start
-        zero(ch)
-        zero(dh)
+        mov bx, fat_buffer
+        zero(dh)                ; head 0
+        zero(ch)                ; track 0
+        mov cl, fat_start       ; starting sector of first FAT
         ;;  make sure we have the right disk information 
-        call near read_disk
+        call near read_sectors
 
-        ;; magic breakpoint for BOCHS
-        ;; xchg bx, bx
-        
-;;; get the location of the next stage of the boot loader
-        
+;;; read in the root directory
+        mov bx, fat_buffer
+        zero(ah)
+        add bx, ax              ; increment ptr past the FAT buffer
+        mov [dir_buffer], bx    ; and save computed ptr for later
+        mov ax, [boot_bpb + BPB.Root_Entries] ; get the # of root entries
+        mov dx, dir_entry_size
+        imul ax, dx             ; multiply entry count by size of entries
+        mov dx, [boot_bpb + BPB.Bytes_Per_Sector]
+        div ax
+        mov dl, [bp - stg2_parameters.drive] ; restore drive #
+        mov dh, 1               ; head 1
+        zero(ch)                ; track 0
+        mov cl, dir_start       ; start of root directory
+        ;;  make sure we have the right disk information 
+        call near read_sectors        
 
+;;; get the location and size of the next stage of the boot loader
         
-;;; and read a fixed number of consecutive sectors at
-;;; a location
-        
-        
-        ;; sanity check - is the loaded value valid?
-        call print_hex
-        write separator
-        mov al, dl
-        call print_hex
-        write comma_done
-
-        ;; magic breakpoint for BOCHS
-        ;; xchg bx, bx
               
         ;; load the located sector after the end of the loaded
         ;; FAT - while we could probably overwrite the FAT sector,
         ;; there is no reason not to preserve it. 
-       write loading
+        write loading
         mov al, stage2_size
         ;;  make sure we have the right disk information
         mov dx, [bp - 2]
@@ -204,15 +180,13 @@ start:
         
 ;;; jump to loaded second stage
         write stg2_jump
+        jmp stage2_buffer
 
         ;; sanity check - is the loaded value valid?
-        mov al, bh
-        call print_hex
-        mov al, bl
-        call print_hex     
-
-        ;; magic breakpoint for BOCHS
-        ;; xchg bx, bx
+;        mov al, bh
+;        call print_hex
+;        mov al, bl
+;        call print_hex
        
         jmp short halted
 
@@ -231,7 +205,7 @@ halted:
 
 print_str:
         pusha
-        mov ah, ttype        ; set function to 'teletype mode'
+        mov ah, ttype       ; set function to 'teletype mode'
         zero(bx)
         mov cx, 1
     .print_char:
@@ -283,56 +257,60 @@ read_sectors:
         popa
         ret
 
-print_hex:
+;print_hex:
 ;;;  al = byte to print
-        pusha
-        mov ah, ttype           ; set function to 'teletype mode'
-        zero(bx)
-        mov cx, 1
-        zero(dh)
-        mov dl, al              ; have a copy of the byte in DL
-        and dl, 0x0f            ; isolate low nibble in DL
-        shr al, 4               ; isolate high nibble into low nibble in AL
-        cmp al, 9
-        jg short .alphanum_hi
-	add al, ascii_zero
-        jmp short .show_hi
-  .alphanum_hi:
-        add al, upper_numerals 
-  .show_hi:
-        int VBIOS
-        mov al, dl
-        cmp al, 9
-        jg short .alphanum_lo
-	add al, ascii_zero
-        jmp short .show_lo
-  .alphanum_lo:
-        add al, upper_numerals  
-  .show_lo:
-        int VBIOS
-
-        popa
-        ret
+;        pusha
+;        mov ah, ttype           ; set function to 'teletype mode'
+;        zero(bx)
+;        mov cx, 1
+;        zero(dh)
+;        mov dl, al              ; have a copy of the byte in DL
+;        and dl, 0x0f            ; isolate low nibble in DL
+;        shr al, 4               ; isolate high nibble into low nibble in AL
+;        cmp al, 9
+;        jg short .alphanum_hi
+;	add al, ascii_zero
+;        jmp short .show_hi
+;  .alphanum_hi:
+;        add al, upper_numerals 
+;  .show_hi:
+;        int VBIOS
+;        mov al, dl
+;        cmp al, 9
+;        jg short .alphanum_lo
+;	add al, ascii_zero
+;        jmp short .show_lo
+;  .alphanum_lo:
+;        add al, upper_numerals  
+;  .show_lo:
+;        int VBIOS
+;
+;        popa
+;        ret
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  data
-;;;  [section .data]
+;;[section .data]
      
-;;; [section .rodata]
-        
-resetting_drive db 'Reset drive...', NULL
-reading_fat     db 'Get sector...', NULL
+;;[section .rodata]
+
+snd_stage_filename db 'STAGE2  SYS'
+
+; reading_fat     db 'Get sector...', NULL
 loading         db 'Load 2nd stage...', NULL
 stg2_jump       db 'entering OS at ', NULL
-separator       db ':', NULL
+;separator       db ':', NULL
 comma_done      db ', '
 done            db 'done.', CR, LF, NULL
-failure_state   db 'Could not ', NULL
+failure_state   db 'Unable to ', NULL
 reset_failed    db 'reset,', NULL
 read_failed     db 'read,'
-exit            db ' boot loader halted.', NULL
+exit            db ' halted.', NULL
 oops            db 'Oops.', NULL 
 
+dir_buffer      resw 1          ; address of directory buffer
+stage2_size     resw 1          ; size of stage 2 buffer
+stage2_buffer   resw 1          ; address of stage 2 buffer
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; pad out to 510, and then add the last two bytes needed for a boot disk

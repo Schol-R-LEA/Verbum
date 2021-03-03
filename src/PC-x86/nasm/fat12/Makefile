@@ -1,10 +1,11 @@
 ASM = nasm -w+all -f bin
 COPY = dd
 FORMAT = mkfs.msdos -F 12 -n "VERBUM"
+REIMAGE=qemu-img
 SYS_INSTALL = ~/Deployments/ms-sys-2.5.3/bin/ms-sys --fat12 
 BOOT = verbum
 STAGE_TWO = stagetwo
-FAT = model_fat_entry
+FAT = verbum_fat_table.bin
 FAT2_SEEK = 9 
 STG2_SEEK = 18
 STG2SIZE = 1
@@ -18,6 +19,8 @@ install: boot stage2
 	$(COPY) if=$(FAT) of=$(DISKTARGET) count=1 seek=1 conv=notrunc
 	$(COPY) if=$(FAT) of=$(DISKTARGET) count=1 seek=$(FAT2_SEEK) conv=notrunc 
 	$(COPY) if=$(STAGE_TWO).bin of=$(DISKTARGET) count=1 seek=$(STG2_SEEK) conv=notrunc
+	$(REIMAGE) convert -f raw -O qcow2 boot.img boot.qcow2
+
 boot:
 	$(ASM) $(BOOT).asm -o $(BOOT).bin -l $(BOOT).lst
 
