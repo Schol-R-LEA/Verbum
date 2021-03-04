@@ -209,11 +209,15 @@ LBA_to_CHS:
         ;; Cylinder = (LBA % (sectors per cyl * # of heads)) / sectors per cyl   
         ;;     => first part in DL, final in AL
         imul bx, Heads
+        zero(dx)
         div bx
         xchg ax, dx             ; so you can divide previous result in DL
         mov dh, dl              ; put previous AL into DH
+        push dx
+        zero(dx)
         div bx                  ; get the final value for Cylinder
         mov ch, al
+        pop dx
         pop bx
         ret
 
