@@ -1,20 +1,20 @@
 %include "bpb.inc"
 
 fat_head        equ 0
-fat_track       equ 0
+fat_cyl         equ 0
 fat_sector      equ 2           ; first sector of the first FAT
 dir_head        equ 1
-dir_track       equ 0
+dir_cyl         equ 0
 dir_sector      equ 2           ; head 1, track 0, sector 2
 stage2_head     equ 1
-stage2_track    equ 0
+stage2_cyl      equ 0
 stage2_sector   equ 0x10
 stage2_size     equ 1
 
 fat_buffer      equ boot_offset + 0x0200
 dir_entry_size  equ 0x20        ; 32 bytes per entry
 dir_buffer      equ fat_buffer + (Sectors_Per_FAT_Short * 0x200)
-stage2_buffer   equ 0x7E00
+stage2_buffer   equ dir_buffer + (dir_entry_size * Root_Entries)
 
 Bytes_Per_Sector          equ 0x0200
 Sectors_Per_Cluster       equ 0x01

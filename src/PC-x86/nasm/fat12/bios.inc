@@ -9,6 +9,8 @@ DBIOS           equ 0x13        ;; BIOS interrupt vector for disk services
 disk_reset      equ 0x00        ;; disk reset service
 disk_read       equ 0x02        ;; disk read service
 
+MBIOS           equ 0x12
+
         
 ;;;BIOS error codes
 reset_failure   equ 0x01        ;; error code returned on disk reset failure
