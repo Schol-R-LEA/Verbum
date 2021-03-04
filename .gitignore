@@ -1,6 +1,7 @@
 *~
 #*#
 .#*
+*.bak
 *.lst
 *.txt
 *.test
