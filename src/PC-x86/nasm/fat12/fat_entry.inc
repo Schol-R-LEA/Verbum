@@ -4,7 +4,6 @@
 ;;; directory entries. It has been separated to allow it to be
 ;;; used separately from the boot sector code.
 
-
 struc directory_entry
         .filename        resb 8
         .extension       resb 3

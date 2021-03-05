@@ -95,29 +95,80 @@ start:
         mov cx, fat_buffer
         mov [bp + stg2_parameters.drive], dx
         mov [bp + stg2_parameters.fat_0], cx
-        mov [bp + stg2_parameters.PnP_Entry_Seg], bx
+        mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
         mov [bp + stg2_parameters.PnP_Entry_Off], di
+        ;; pointers to aux routines inside the boot loader
         mov [bp + stg2_parameters.reset_drive], word reset_disk
-        mov [bp + stg2_parameters.read_sectors], word read_sectors
+        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
         mov [bp + stg2_parameters.print_str], word print_str
         mov [bp + stg2_parameters.halt_loop], word halted
 
 ;;; reset the disk drive
-        call near reset_disk       
+        call near reset_disk
 
-;;; get the first (or next) sector of the FAT
+;;; read the first FAT into memory
+        mov cx, Sectors_Per_FAT_Short     ; size of both FATs plus the reserved sectors
+        mov ax, 1
+        mov bx, fat_buffer
+    .fat_loop:
+        call near read_LBA_sector
+        loop .fat_loop
 
+;;; read the root directory into memory
+        mov cx, dir_size
+        mov bx, dir_buffer
+    .dir_loop:
+        call near read_LBA_sector
+        loop .dir_loop
 
+;;; seek the directory for the stage 2 file
+        ;; only SP and BP can be used as indices, 
+        ;; so save the current base pointer to free it up 
+        push bp                
+    .entry_test:
+        mov bp, bx              ; save the current directory entry
+        mov di, bx
+        cmp [bx], word 0
+        je .no_file
+        mov si, snd_stage_file
+        mov cx, 11
+        repe cmpsb              ; is the directory entry == the stg2 file?
+        add bx, dir_entry_size
+        jne short .entry_test
+        ;; position of first sector
+        mov ax, [bp + directory_entry.file_size]
+        mov dx, [bp + directory_entry.file_size + 1]
+        mov cx, Bytes_Per_Sector
+        div cx                  ; AX = number of sectors - 1
+        inc ax                  ; round up
+        mov cx, ax
+        ;; get the position for the first FAT entry
+        mov ax, [bp + directory_entry.cluster_lobits]
+        mov dx, [bp + directory_entry.cluster_hibits]
+    .read_next_sector:
         
-;;; jump to loaded second stage
-        write stage2_jump
-        jmp stage2_buffer
 
+
+
+        ;; find the sector based on the FAT entry
+        
+
+        pop bp                  ; restore bp
+        
+
+
+ ;;; jump to loaded second stage
+        jmp stage2_buffer
+        jmp short halted        ; in case of failure
+ 
+    .no_file:
+;        write failure_state
+;        write read_failed
         jmp short halted
 
 
 ;;;  backstop - it shouldn't ever actually print this message
-        write oops
+;        write oops
         
 halted:
         hlt
@@ -126,8 +177,9 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 
-;;;;print_str - prints the string point to by SI
-
+;;; print_str - prints the string point to by SI
+;;; Inputs:
+;;;        ES:SI - string to print
 print_str:
         pusha
         mov ah, ttype       ; set function to 'teletype mode'
@@ -143,22 +195,24 @@ print_str:
         popa
         ret
 
-;;;reset_disk
+;;; reset_disk - reset the floppy drive
+;;; Inputs:
+;;;        DL - the disk ID
 reset_disk:
         mov si, 0
         mov di, tries        ; set count of attempts for disk resets
-  .try_reset:
+    .try_reset:
         mov ah, disk_reset
         int DBIOS
         jnc short .reset_end
         dec di
         jnz short .try_reset
         ;;; if repeated attempts to reset the disk fail, report error code
-        write failure_state
-        write reset_failed
-        write exit
-        jmp halted
-  .reset_end:
+;        write failure_state
+;        write reset_failed
+;        write exit
+        jmp short halted
+    .reset_end:
         ret
    
 
@@ -170,8 +224,7 @@ reset_disk:
 ;;; Outputs:
 ;;;       AX = LBA+1 (i.e., the increment of previous LBA value) 
 ;;;       ES:BX - buffer written to
-;;; Temp variables:
-;;;       
+
 read_LBA_sector:
         pusha
         call near LBA_to_CHS
@@ -180,7 +233,7 @@ read_LBA_sector:
         mov dh, ah
         mov al, 1
         call near read_sectors
-.read_end:                      ; read_LBA_sector
+    .read_end:                  ; read_LBA_sector
         popa
         inc ax
         ret
@@ -221,7 +274,16 @@ LBA_to_CHS:
         pop bx
         ret
 
-
+;;; read_sectors -  
+;;; Inputs: 
+;;;       AL = # of sectors to read
+;;;       DL = drive number
+;;;       CH = Cylinder
+;;;       DH = Head
+;;;       CL = Sector (bits 0-5)
+;;; Outputs:
+;;;       ES:BX = segment and offset for the buffer 
+;;;               to save the read sector into
 read_sectors:
         pusha
         mov si, 0
@@ -235,8 +297,8 @@ read_sectors:
         dec di
         jnz short .try_read
         ; if repeated attempts to read the disk fail, report error code
-        write failure_state
-        write read_failed    ; fall-thru to 'exit', don't needs separate write
+;        write failure_state
+;        write read_failed    ; fall-thru to 'exit', don't needs separate write
         jmp halted
         
   .read_end:
@@ -283,16 +345,15 @@ read_sectors:
 snd_stage_file  db 'STAGE2  SYS'
 
 ; reading_fat     db 'Get sector...', NULL
-loading         db 'Load 2nd stage...', NULL
-stage2_jump     db 'entering OS... ', NULL
+;loading         db 'Load stage 2...', NULL
 ;separator       db ':', NULL
-comma_done      db ', '
-done            db 'done.', CR, LF, NULL
-failure_state   db 'Unable to ', NULL
-reset_failed    db 'reset,', NULL
-read_failed     db 'read,'
-exit            db ' halted.', NULL
-oops            db 'Oops.', NULL 
+;comma_done      db ', '
+;done            db 'done.', CR, LF, NULL
+;failure_state   db 'Unable to ', NULL
+;reset_failed    db 'reset,', NULL
+;read_failed     db 'read,'
+;exit            db ' halted.', NULL
+;oops            db 'Oops.', NULL 
 
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
