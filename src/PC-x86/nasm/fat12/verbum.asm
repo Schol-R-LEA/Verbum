@@ -47,7 +47,7 @@ stack_top        equ 0xFFFE
 tries            equ 0x03        ; number of times to attempt to access the FDD
 high_nibble_mask equ 0x0FFF
 mid_nibble_mask  equ 0xFF0F
-
+nibble_shift     equ 4
 
         
 [bits 16]
@@ -161,9 +161,9 @@ start:
         jnz .even
         and ax, high_nibble_mask
         jmp .odd
-        ;; else drop the top nibble of the low byte  
+        ;; else drop the bottom nibble of the low byte  
     .even:
-        and ax, mid_nibble_mask
+        shr ax, nibble_shift
 
         ;; find the sector based on the FAT entry   
     .odd:
