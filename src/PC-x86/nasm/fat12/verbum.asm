@@ -36,15 +36,18 @@
 %endmacro
 
 ;;; constants
-boot_base       equ 0x0000      ; the segment base:offset pair for the
-boot_offset     equ 0x7C00      ; boot code entrypoint
+boot_base        equ 0x0000      ; the segment base:offset pair for the
+boot_offset      equ 0x7C00      ; boot code entrypoint
 
 ;; ensure that there is no segment overlap
-stack_segment   equ 0x1000  
-stack_top       equ 0xFFFE
+stack_segment    equ 0x1000  
+stack_top        equ 0xFFFE
 
 ;;;operational constants 
-tries           equ 0x03        ; number of times to attempt to access the FDD
+tries            equ 0x03        ; number of times to attempt to access the FDD
+high_nibble_mask equ 0x0FFF
+mid_nibble_mask  equ 0xFF0F
+
 
         
 [bits 16]
@@ -143,19 +146,35 @@ start:
         inc ax                  ; round up
         mov cx, ax
         ;; get the position for the first FAT entry
-        mov ax, [bp + directory_entry.cluster_lobits]
+        mov bx, [bp + directory_entry.cluster_lobits]
         mov dx, [bp + directory_entry.cluster_hibits]
-    .read_next_sector:
-        
+    .read_first_sector:
+        ;; FIXME - if DX != 0, panic
+        ;; Since the low bits can map 2MiB,
+        ;; this shouldn't be a problem in the short term
+;        cmp dx, word 0
+;        jne short halted
+        ;;
+        mov ax, [bx]            ; get the two bytes of the FAT entry
+        ;; if odd(BX), drop the top nibble of the high byte
+        and bx, 1
+        jnz .even
+        and ax, high_nibble_mask
+        jmp .odd
+        ;; else drop the top nibble of the low byte  
+    .even:
+        and ax, mid_nibble_mask
 
+        ;; find the sector based on the FAT entry   
+    .odd:
+        mov bx, stage2_buffer
+    ; requires all sectors of the stage 2 to be consecutive
+    .get_sectors:
+        call near read_LBA_sector
+        loop .get_sectors
 
-
-        ;; find the sector based on the FAT entry
-        
-
+    .stg2_read_finished:
         pop bp                  ; restore bp
-        
-
 
  ;;; jump to loaded second stage
         jmp stage2_buffer
