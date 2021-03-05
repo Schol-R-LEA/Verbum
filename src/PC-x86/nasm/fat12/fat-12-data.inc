@@ -1,3 +1,6 @@
+%ifndef FAT12_DATA__INC
+%define FAT12_DATA__INC
+
 %include "bpb.inc"
 
 
@@ -51,3 +54,5 @@ istruc Disk_Details
     at Disk_Details.Disk_Label,       db "VERBUM-0.5 "    ; must be exactly 11 characters
     at Disk_Details.File_System,      db "FAT12   "       ; must be exactly 8 characters
 iend
+
+%endif

@@ -1,3 +1,6 @@
+%ifndef BIOS__INC
+%define BIOS__INC
+
 ;;; Constants related to the BIOS interrupts
 
 VBIOS           equ 0x10        ;; BIOS interrupt vector for video services
@@ -15,3 +18,4 @@ MBIOS           equ 0x12
 ;;;BIOS error codes
 reset_failure   equ 0x01        ;; error code returned on disk reset failure
 read_failure    equ 0x02        ;; error code returned on disk read failure
+%endif

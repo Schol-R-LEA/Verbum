@@ -4,6 +4,9 @@
 ;;; directory entries. It has been separated to allow it to be
 ;;; used separately from the boot sector code.
 
+%ifndef FAT_ENTRY__INC
+%define FAT_ENTRY__INC
+
 struc directory_entry
         .filename        resb 8
         .extension       resb 3
@@ -19,3 +22,5 @@ struc directory_entry
         .cluster_lobits  resw 1
         .file_size       resd 1
 endstruc
+
+%endif

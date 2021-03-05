@@ -1,3 +1,6 @@
+%ifndef STAGE2_PARAMETERS__INC
+%define STAGE2_PARAMETERS__INC
+
 struc stg2_parameters
         .drive           resw 1   ; include a padding byte for stack alignment
         .fat_0           resw 1
@@ -8,3 +11,5 @@ struc stg2_parameters
         .print_str       resw 1
         .halt_loop       resw 1      
 endstruc
+
+%endif

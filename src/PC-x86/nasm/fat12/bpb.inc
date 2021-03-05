@@ -4,6 +4,9 @@
 ;;; BIOS Parameter Block. It has been separated to allow it to be
 ;;; used separately from the boot sector code.
 
+%ifndef BPB__INC
+%define BPB__INC
+
 struc BPB
        .OEM_ID                 resb 8    ;;; must be exactly 8 characters  
       .Bytes_Per_Sector        resb 2
@@ -40,3 +43,5 @@ struc EBPB_32
       .Backup_Boot_Sector      resb 2
       .Reserved                resb 12
 endstruc
+
+%endif

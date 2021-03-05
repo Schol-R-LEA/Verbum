@@ -24,6 +24,7 @@
 ;;; data structure definitions
 %include "bios.inc"
 %include "consts.inc"
+%include "bpb.inc"
 %include "fat_entry.inc"
 %include "stage2_parameters.inc"
 %include "macros.inc"
@@ -63,7 +64,7 @@ entry:
 ;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
 
 boot_bpb:
-%include "fat-12.inc"
+%include "fat-12-data.inc"
 
    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -195,165 +196,11 @@ halted:
    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
+%include "simple_text_print_code.inc"
 
-;;; print_str - prints the string point to by SI
-;;; Inputs:
-;;;        ES:SI - string to print
-print_str:
-        pusha
-        mov ah, ttype       ; set function to 'teletype mode'
-        zero(bx)
-        mov cx, 1
-    .print_char:
-        lodsb               ; update byte to print
-        cmp al, NULL        ; test that it isn't NULL
-        jz short .endstr
-        int  VBIOS          ; put character in AL at next cursor position
-        jmp short .print_char
-    .endstr:
-        popa
-        ret
-
-;;; reset_disk - reset the floppy drive
-;;; Inputs:
-;;;        DL - the disk ID
-reset_disk:
-        mov si, 0
-        mov di, tries        ; set count of attempts for disk resets
-    .try_reset:
-        mov ah, disk_reset
-        int DBIOS
-        jnc short .reset_end
-        dec di
-        jnz short .try_reset
-        ;;; if repeated attempts to reset the disk fail, report error code
-;        write failure_state
-;        write reset_failed
-;        write exit
-        jmp short halted
-    .reset_end:
-        ret
-   
-
-;;; read_LBA_sector - read a sector from a Linear Block Address 
-;;; Inputs: 
-;;;       AX = Linear Block Address to read from
-;;;       ES = Segment to write result to
-;;;       BX = offset to write result to
-;;; Outputs:
-;;;       AX = LBA+1 (i.e., the increment of previous LBA value) 
-;;;       ES:BX - buffer written to
-
-read_LBA_sector:
-        pusha
-        call near LBA_to_CHS
-        mov ah, dh              ; temporary swap
-        mov dx, [bp + stg2_parameters.drive] ; get the value for DL
-        mov dh, ah
-        mov al, 1
-        call near read_sectors
-    .read_end:                  ; read_LBA_sector
-        popa
-        inc ax
-        ret
+%include "simple_disk_handling_code.inc"
 
 
-
-;;; LBA_to_CHS - compute the cylinder, head, and sector 
-;;;              from a linear block address 
-;;; Inputs: 
-;;;       AX = Linear Block Address         
-;;; Outputs:
-;;;       CH = Cylinder
-;;;       DH = Head
-;;;       CL = Sector (bits 0-5)
-LBA_to_CHS:
-        push bx
-        push ax                 ; save so it can be used twice
-        zero(dh)
-        mov bx, Sectors_Per_Cylinder
-        ;; Sector =  (LBA % sectors per cyl) + 1    => in DL
-        div bx
-        inc dl
-        mov cl, dl
-        pop ax                  ; retrieve LBA value
-        ;; Head = LBA / (sectors per cyl * # of heads)   => in AL
-        ;; Cylinder = (LBA % (sectors per cyl * # of heads)) / sectors per cyl   
-        ;;     => first part in DL, final in AL
-        imul bx, Heads
-        zero(dx)
-        div bx
-        xchg ax, dx             ; so you can divide previous result in DL
-        mov dh, dl              ; put previous AL into DH
-        push dx
-        zero(dx)
-        div bx                  ; get the final value for Cylinder
-        mov ch, al
-        pop dx
-        pop bx
-        ret
-
-;;; read_sectors -  
-;;; Inputs: 
-;;;       AL = # of sectors to read
-;;;       DL = drive number
-;;;       CH = Cylinder
-;;;       DH = Head
-;;;       CL = Sector (bits 0-5)
-;;; Outputs:
-;;;       ES:BX = segment and offset for the buffer 
-;;;               to save the read sector into
-read_sectors:
-        pusha
-        mov si, 0
-        mov di, tries        ; set count of attempts for disk reads
-        mov ah, disk_read
-  .try_read:
-        push ax
-        int DBIOS
-        pop ax
-        jnc short .read_end
-        dec di
-        jnz short .try_read
-        ; if repeated attempts to read the disk fail, report error code
-;        write failure_state
-;        write read_failed    ; fall-thru to 'exit', don't needs separate write
-        jmp halted
-        
-  .read_end:
-        popa
-        ret
-
-;print_hex:
-;;;  al = byte to print
-;        pusha
-;        mov ah, ttype           ; set function to 'teletype mode'
-;        zero(bx)
-;        mov cx, 1
-;        zero(dh)
-;        mov dl, al              ; have a copy of the byte in DL
-;        and dl, 0x0f            ; isolate low nibble in DL
-;        shr al, 4               ; isolate high nibble into low nibble in AL
-;        cmp al, 9
-;        jg short .alphanum_hi
-;	add al, ascii_zero
-;        jmp short .show_hi
-;  .alphanum_hi:
-;        add al, upper_numerals 
-;  .show_hi:
-;        int VBIOS
-;        mov al, dl
-;        cmp al, 9
-;        jg short .alphanum_lo
-;	add al, ascii_zero
-;        jmp short .show_lo
-;  .alphanum_lo:
-;        add al, upper_numerals  
-;  .show_lo:
-;        int VBIOS
-;
-;        popa
-;        ret
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  data
