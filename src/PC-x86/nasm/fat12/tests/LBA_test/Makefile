@@ -7,7 +7,7 @@ BOOT = test_LBA_translation
 DISKTARGET = boot.img
 DISKSIZE = 1440
 
-install: boot stage2
+install: boot
 	dd if=/dev/zero of=$(DISKTARGET) count=$(DISKSIZE) bs=1k
 	$(FORMAT) $(DISKTARGET)
 	dd if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc

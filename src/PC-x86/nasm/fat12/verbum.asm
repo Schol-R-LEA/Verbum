@@ -45,7 +45,7 @@ stack_segment    equ 0x1000
 stack_top        equ 0xFFFE
 
 ;;;operational constants 
-tries            equ 0x03        ; number of times to attempt to access the FDD
+
 high_nibble_mask equ 0x0FFF
 mid_nibble_mask  equ 0xFF0F
 nibble_shift     equ 4

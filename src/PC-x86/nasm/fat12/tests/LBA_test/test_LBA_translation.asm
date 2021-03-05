@@ -5,8 +5,6 @@
 ;;; data structure definitions
 %include "../../bios.inc"
 %include "../../consts.inc"
-%include "../../bpb.inc"
-%include "../../fat_entry.inc"
 %include "../../macros.inc"
 
 
@@ -24,13 +22,6 @@ boot_offset      equ 0x7C00      ; boot code entrypoint
 stack_segment    equ 0x1000  
 stack_top        equ 0xFFFE
 
-;;;operational constants 
-tries            equ 0x03        ; number of times to attempt to access the FDD
-high_nibble_mask equ 0x0FFF
-mid_nibble_mask  equ 0xFF0F
-nibble_shift     equ 4
-
-        
 [bits 16]
 [org boot_offset]
 [section .text]
@@ -39,7 +30,13 @@ nibble_shift     equ 4
 entry:
         jmp short start
         nop
-   
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
+
+boot_bpb:
+%include "fat-12-data.inc"
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -53,7 +50,6 @@ start:
         ;; set up a stack frame for the disk info
         ;;  and other things passed by the boot sector
         mov ax, stack_top
-        sub ax, stg2_parameters_size
         mov sp, ax
         mov bp, sp
         sti                     ; reset ints so BIOS calls can be used
@@ -67,9 +63,26 @@ start:
         ;; any other housekeeping that needs to be done at the start
         cld
 
-
-
-
+        mov cx, 32
+        mov ax, 0       
+.test_loop:
+        push cx
+        push ax
+        call LBA_to_CHS
+        write cylinder
+        mov al, ch
+        call print_hex_byte
+        write head
+        mov al, dh
+        call print_hex_byte
+        write sector
+        mov al, cl
+        call print_hex_byte
+        write nl
+        pop ax
+        inc ax
+        pop cx
+        loop .test_loop
         
 halted:
         hlt
@@ -78,7 +91,7 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "../../simple_text_print_code.inc"
-%include "../../print_hex.inc"
+%include "../../print_hex_code.inc"
 %include "../../simple_disk_handling_code.inc"
 
 
@@ -88,19 +101,10 @@ halted:
 ;;[section .data]
      
 ;;[section .rodata]
-
-snd_stage_file  db 'STAGE2  SYS'
-
-; reading_fat     db 'Get sector...', NULL
-;loading         db 'Load stage 2...', NULL
-;separator       db ':', NULL
-;comma_done      db ', '
-;done            db 'done.', CR, LF, NULL
-;failure_state   db 'Unable to ', NULL
-;reset_failed    db 'reset,', NULL
-;read_failed     db 'read,'
-;exit            db ' halted.', NULL
-;oops            db 'Oops.', NULL 
+cylinder      db "Cylinder: ", NULL
+head          db ", Head: ", NULL
+sector        db ", Sector: ", NULL
+nl            db CR, LF, NULL
 
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
