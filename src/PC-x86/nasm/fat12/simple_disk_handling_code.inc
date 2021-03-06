@@ -24,10 +24,10 @@ reset_disk:
         dec di
         jnz short .try_reset
         ;;; if repeated attempts to reset the disk fail, report error code
-;        write failure_state
-;        write reset_failed
-;        write exit
-        jmp short halted
+ ;       write failure_state
+ ;       write reset_failed
+ ;       write exit
+        jmp halted
     .reset_end:
         ret
    
@@ -67,26 +67,27 @@ read_LBA_sector:
 LBA_to_CHS:
         push bx
         push ax                 ; save so it can be used twice
-        zero(dh)
+        zero(dx)
         mov bx, Sectors_Per_Cylinder
         ;; Sector =  (LBA % sectors per cyl) + 1    => in DL
         div bx
         inc dl
         mov cl, dl
         pop ax                  ; retrieve LBA value
-        ;; Head = LBA / (sectors per cyl * # of heads)   => in AL
-        ;; Cylinder = (LBA % (sectors per cyl * # of heads)) / sectors per cyl   
-        ;;     => first part in DL, final in AL
+        
+        ;; Cylinder = LBA / (sectors per cyl * # of heads)   => in AL
         imul bx, Heads
         zero(dx)
-        div bx
-        xchg ax, dx             ; so you can divide previous result in DL
-        mov dh, dl              ; put previous AL into DH
-        push dx
+        div bx                  ; AX = Cyl #, DL = partial result for Head
+        mov ch, al              ; put previous AL into CH
+
+        ;; Head = (LBA % (sectors per cyl * # of heads)) / sectors per cyl   
+        ;;     => first part in DL, final in AL
+        mov ax, dx
         zero(dx)
-        div bx                  ; get the final value for Cylinder
-        mov ch, al
-        pop dx
+        mov bx, Sectors_Per_Cylinder
+        div bx                  ; get the final value for Head
+        mov dh, al
         pop bx
         ret
 

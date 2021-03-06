@@ -63,11 +63,14 @@ start:
         ;; any other housekeeping that needs to be done at the start
         cld
 
-        mov cx, 32
+        mov cx, 64
         mov ax, 0       
 .test_loop:
         push cx
-        push ax
+        mov bx, ax
+        write lba
+        call print_hex_word
+        mov ax, bx 
         call LBA_to_CHS
         write cylinder
         mov al, ch
@@ -79,7 +82,7 @@ start:
         mov al, cl
         call print_hex_byte
         write nl
-        pop ax
+        mov ax, bx
         inc ax
         pop cx
         loop .test_loop
@@ -101,7 +104,8 @@ halted:
 ;;[section .data]
      
 ;;[section .rodata]
-cylinder      db "Cylinder: ", NULL
+lba           db "Linear Block address ", NULL
+cylinder      db " == Cylinder: ", NULL
 head          db ", Head: ", NULL
 sector        db ", Sector: ", NULL
 nl            db CR, LF, NULL

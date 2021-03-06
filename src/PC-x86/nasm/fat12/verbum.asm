@@ -188,7 +188,7 @@ start:
 
 
 ;;;  backstop - it shouldn't ever actually print this message
-;        write oops
+;;        write oops
         
 halted:
         hlt
@@ -197,7 +197,7 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
-
+; %include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
 
 
