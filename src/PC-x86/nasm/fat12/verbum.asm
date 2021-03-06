@@ -158,7 +158,7 @@ start:
         mov di, bx
         mov si, snd_stage_file
         push cx
-        mov cx, 11
+        mov cx, filename_length
         repe cmpsb              ; is the directory entry == the stg2 file?
         je .entry_found
         add bx, dir_entry_size

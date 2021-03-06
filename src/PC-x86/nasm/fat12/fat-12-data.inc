@@ -11,6 +11,7 @@ dir_entry_size            equ 0x20        ; 32 bytes per entry
 dir_size                  equ dir_entry_size * Root_Entries
 dir_sectors               equ dir_size / Bytes_Per_Sector
 dir_buffer                equ fat_buffer + fat_size
+filename_length           equ 11
 stage2_buffer             equ dir_buffer + dir_size
 first_data_sector         equ fats_reserved_sectors + dir_sectors
 
