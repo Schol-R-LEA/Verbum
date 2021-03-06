@@ -112,31 +112,11 @@ start:
 
 ;;; read the first FAT into memory
         mov cx, Sectors_Per_FAT_Short     
-        mov ax, 1
+        mov ax, 0
         add ax, Reserved_Sectors          ; get location of the first FAT sector
         mov bx, fat_buffer
     .fat_loop:
         call near read_LBA_sector
-
-;;;;;; test code
-;        cmp bx, word fat_buffer           ; only display first 16 entries
-;        jne .display_done
-        push cx
-        push bx
-        push ax
-        mov cx, 16
-    .display_fat:
-        mov ax, [bx]
-        call print_hex_word
-        add bx, 2
-        write space_char
-        loop .display_fat
-        write nl
-        pop ax
-        pop bx
-        pop cx
-    .display_done:
-;;;;;; test code ends
         add bx, 0x200
         loop .fat_loop
 
