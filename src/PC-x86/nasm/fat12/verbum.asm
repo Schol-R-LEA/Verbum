@@ -111,7 +111,7 @@ start:
         call near reset_disk
 
 ;;; read the first FAT into memory
-        mov cx, Sectors_Per_FAT_Short     ; size of both FATs plus the reserved sectors
+        mov cx, Sectors_Per_FAT_Short     
         mov ax, 1
         add ax, Reserved_Sectors          ; get location of the first FAT sector
         mov bx, fat_buffer
@@ -119,12 +119,12 @@ start:
         call near read_LBA_sector
 
 ;;;;;; test code
-        cmp bx, word fat_buffer           ; only display first 16 entries
-        jne .display_done
+;        cmp bx, word fat_buffer           ; only display first 16 entries
+;        jne .display_done
         push cx
         push bx
         push ax
-        mov cx, 32
+        mov cx, 16
     .display_fat:
         mov ax, [bx]
         call print_hex_word
