@@ -96,16 +96,16 @@ start:
 
         ;; find the start of the stage 2 parameter frame
         ;;  and populated the frame
-        mov cx, fat_buffer
-        mov [bp + stg2_parameters.drive], dx
-        mov [bp + stg2_parameters.fat_0], cx
-        mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
-        mov [bp + stg2_parameters.PnP_Entry_Off], di
+;        mov cx, fat_buffer
+;        mov [bp + stg2_parameters.drive], dx
+;        mov [bp + stg2_parameters.fat_0], cx
+;        mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
+;        mov [bp + stg2_parameters.PnP_Entry_Off], di
         ;; pointers to aux routines inside the boot loader
-        mov [bp + stg2_parameters.reset_drive], word reset_disk
-        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
-        mov [bp + stg2_parameters.print_str], word print_str
-        mov [bp + stg2_parameters.halt_loop], word halted
+;        mov [bp + stg2_parameters.reset_drive], word reset_disk
+;        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
+;        mov [bp + stg2_parameters.print_str], word print_str
+;        mov [bp + stg2_parameters.halt_loop], word halted
 
 ;;; reset the disk drive
         call near reset_disk
@@ -113,9 +113,31 @@ start:
 ;;; read the first FAT into memory
         mov cx, Sectors_Per_FAT_Short     ; size of both FATs plus the reserved sectors
         mov ax, 1
+        add ax, Reserved_Sectors          ; get location of the first FAT sector
         mov bx, fat_buffer
     .fat_loop:
         call near read_LBA_sector
+
+;;;;;; test code
+        cmp bx, word fat_buffer           ; only display first 16 entries
+        jne .display_done
+        push cx
+        push bx
+        push ax
+        mov cx, 32
+    .display_fat:
+        mov ax, [bx]
+        call print_hex_word
+        add bx, 2
+        write space_char
+        loop .display_fat
+        write nl
+        pop ax
+        pop bx
+        pop cx
+    .display_done:
+;;;;;; test code ends
+        add bx, 0x200
         loop .fat_loop
 
 ;;; read the root directory into memory
@@ -197,7 +219,7 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
-; %include "print_hex_code.inc"
+%include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
 
 
@@ -214,13 +236,14 @@ snd_stage_file  db 'STAGE2  SYS'
 ;loading         db 'Load stage 2...', NULL
 ;separator       db ':', NULL
 ;comma_done      db ', '
-;done            db 'done.', CR, LF, NULL
+;done            db 'done.',
+nl               db CR, LF, NULL
 ;failure_state   db 'Unable to ', NULL
 ;reset_failed    db 'reset,', NULL
 ;read_failed     db 'read,'
 ;exit            db ' halted.', NULL
 ;oops            db 'Oops.', NULL 
-
+space_char       db ' ', NULL
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; pad out to 510, and then add the last two bytes needed for a boot disk
