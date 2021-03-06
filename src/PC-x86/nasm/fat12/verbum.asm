@@ -128,23 +128,23 @@ start:
         push cx
         call near read_LBA_sector
 ;;;;; test code
-        cmp cx, word dir_sectors
-        jl .dir_print_done
-        push bx
-        push ax
-        mov cx, (dir_entry_size)
-    .dir_entry_print:
-        mov ax, [bx]
-        call print_hex_byte
-        inc bx
-        mov ax, [bx]
-        call print_hex_byte
-        write space_char
-        inc bx
-        loop .dir_entry_print
-        pop ax
-        pop bx
-.dir_print_done:
+;        cmp cx, word dir_sectors
+;        jl .dir_print_done
+;        push bx
+;        push ax
+;        mov cx, (dir_entry_size)
+;    .dir_entry_print:
+;        mov ax, [bx]
+;        call print_hex_byte
+;        inc bx
+;        mov ax, [bx]
+;        call print_hex_byte
+;        write space_char
+;        inc bx
+;        loop .dir_entry_print
+;        pop ax
+;        pop bx
+;.dir_print_done:
 ;;;;; test code ends
         add bx, Bytes_Per_Sector
         pop cx
@@ -154,7 +154,7 @@ start:
 ;;; seek the directory for the stage 2 file
         mov bx, dir_buffer
         mov cx, Root_Entries
-    .entry_test:
+    .dir_entry_test:
         mov di, bx
         mov si, snd_stage_file
         push cx
@@ -163,21 +163,29 @@ start:
         je .entry_found
         add bx, dir_entry_size
         pop cx
-        loop .entry_test
-        
+        loop .dir_entry_test
+        jmp .no_file
+
     .entry_found:
+
 ;;;;; test code
-;        write snd_stage_file
-;        write space_char
-;        write Found
-;        mov ax, bx
-;        call print_hex_word
-;        write nl
-;;;;; test code ends
+        push ax
+        mov ax, bx
+        call print_hex_word
+        pop ax
+;;;;; test code ends 
+
         push bp
         mov bp, bx
+ 
         ;; position of first sector
         mov ax, [bp + directory_entry.file_size]
+;;;;; test code
+;        push ax
+;        call print_hex_word
+;        pop ax
+;;;;; test code ends 
+
         mov dx, [bp + directory_entry.file_size + 1]
         mov cx, Bytes_Per_Sector
         div cx                  ; AX = number of sectors - 1
@@ -194,10 +202,10 @@ start:
         mov bx, [bp + directory_entry.cluster_lobits]
 
 ;;;;; test code
-        push ax
-        mov ax, bx      
-        call print_hex_word
-        pop ax
+;        push ax
+;        mov ax, bx      
+;        call print_hex_word
+;        pop ax
 ;;;;; test code ends
         
     .read_first_sector:
