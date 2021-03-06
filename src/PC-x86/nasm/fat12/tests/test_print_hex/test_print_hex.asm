@@ -91,9 +91,9 @@ start:
         call print_str
 
 .seg_off_test:    
-        mov ax, 512
+        mov ax, 0x0C1C
         mov gs, ax
-        mov ax, 127
+        mov ax, 0x0cb4
         call print_hex_seg_offset
 
         mov si, nl

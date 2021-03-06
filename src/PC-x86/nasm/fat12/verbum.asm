@@ -117,47 +117,90 @@ start:
         mov bx, fat_buffer
     .fat_loop:
         call near read_LBA_sector
-        add bx, 0x200
+        add bx, Bytes_Per_Sector
         loop .fat_loop
 
 ;;; read the root directory into memory
-        mov cx, dir_size
+        mov cx, dir_sectors
         mov bx, dir_buffer
+        mov ax, dir_start_sector
     .dir_loop:
+        push cx
         call near read_LBA_sector
+;;;;; test code
+        cmp cx, word dir_sectors
+        jl .dir_print_done
+        push bx
+        push ax
+        mov cx, (dir_entry_size)
+    .dir_entry_print:
+        mov ax, [bx]
+        call print_hex_byte
+        inc bx
+        mov ax, [bx]
+        call print_hex_byte
+        write space_char
+        inc bx
+        loop .dir_entry_print
+        pop ax
+        pop bx
+.dir_print_done:
+;;;;; test code ends
+        add bx, Bytes_Per_Sector
+        pop cx
         loop .dir_loop
 
+
 ;;; seek the directory for the stage 2 file
-        ;; only SP and BP can be used as indices, 
-        ;; so save the current base pointer to free it up 
-        push bp                
+        mov bx, dir_buffer
+        mov cx, Root_Entries
     .entry_test:
-        mov bp, bx              ; save the current directory entry
         mov di, bx
-        cmp [bx], word 0
-        je .no_file
         mov si, snd_stage_file
+        push cx
         mov cx, 11
         repe cmpsb              ; is the directory entry == the stg2 file?
+        je .entry_found
         add bx, dir_entry_size
-        jne short .entry_test
+        pop cx
+        loop .entry_test
+        
+    .entry_found:
+;;;;; test code
+;        write snd_stage_file
+;        write space_char
+;        write Found
+;        mov ax, bx
+;        call print_hex_word
+;        write nl
+;;;;; test code ends
+        push bp
+        mov bp, bx
         ;; position of first sector
         mov ax, [bp + directory_entry.file_size]
         mov dx, [bp + directory_entry.file_size + 1]
         mov cx, Bytes_Per_Sector
         div cx                  ; AX = number of sectors - 1
         inc ax                  ; round up
+;;;;; test code
+;        push ax
+;        mov ax, bx
+;        sub ax, dir_buffer
+;        call print_hex_word
+;        pop ax
+;;;;; test code ends        
         mov cx, ax
         ;; get the position for the first FAT entry
         mov bx, [bp + directory_entry.cluster_lobits]
-        mov dx, [bp + directory_entry.cluster_hibits]
+
+;;;;; test code
+        push ax
+        mov ax, bx      
+        call print_hex_word
+        pop ax
+;;;;; test code ends
+        
     .read_first_sector:
-        ;; FIXME - if DX != 0, panic
-        ;; Since the low bits can map 2MiB,
-        ;; this shouldn't be a problem in the short term
-;        cmp dx, word 0
-;        jne short halted
-        ;;
         mov ax, [bx]            ; get the two bytes of the FAT entry
         ;; if odd(BX), drop the top nibble of the high byte
         and bx, 1
@@ -167,9 +210,14 @@ start:
         ;; else drop the bottom nibble of the low byte  
     .even:
         shr ax, nibble_shift
-
         ;; find the sector based on the FAT entry   
     .odd:
+;;;;; test code
+;        push ax
+;        call print_hex_word
+;        pop ax
+;;;;; test code ends
+        
         mov bx, stage2_buffer
     ; requires all sectors of the stage 2 to be consecutive
     .get_sectors:
@@ -184,8 +232,8 @@ start:
         jmp short halted        ; in case of failure
  
     .no_file:
-;        write failure_state
-;        write read_failed
+        write failure_state
+        write read_failed
         jmp short halted
 
 
@@ -210,21 +258,22 @@ halted:
      
 ;;[section .rodata]
 
-snd_stage_file  db 'STAGE2  SYS'
+snd_stage_file  db 'STAGE2  SYS', NULL
 
 ; reading_fat     db 'Get sector...', NULL
 ;loading         db 'Load stage 2...', NULL
 ;separator       db ':', NULL
 ;comma_done      db ', '
 ;done            db 'done.',
-nl               db CR, LF, NULL
-;failure_state   db 'Unable to ', NULL
+;nl               db CR, LF, NULL
+failure_state   db 'Unable to ', NULL
 ;reset_failed    db 'reset,', NULL
-;read_failed     db 'read,'
-;exit            db ' halted.', NULL
+read_failed     db 'read,'
+exit            db ' halted.', NULL
 ;oops            db 'Oops.', NULL 
-space_char       db ' ', NULL
-        
+space_char      db ' ', NULL
+;Found           db 'Found at sector ', NULL
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; pad out to 510, and then add the last two bytes needed for a boot disk
 space     times (0x0200 - 2) - ($-$$) db 0

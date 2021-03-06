@@ -3,13 +3,17 @@
 
 %include "bpb.inc"
 
-
-fats_reserved_size        equ Reserved_Sectors + (FATs * Sectors_Per_FAT_Short)
-fat_buffer                equ boot_offset + 0x0200
+fat_size                  equ Sectors_Per_FAT_Short * Bytes_Per_Sector
+fats_reserved_sectors     equ Reserved_Sectors + (FATs * Sectors_Per_FAT_Short)
+fat_buffer                equ boot_offset + Bytes_Per_Sector
+dir_start_sector          equ fats_reserved_sectors
 dir_entry_size            equ 0x20        ; 32 bytes per entry
 dir_size                  equ dir_entry_size * Root_Entries
-dir_buffer                equ fat_buffer + (Sectors_Per_FAT_Short * 0x200)
-stage2_buffer             equ dir_buffer + (dir_entry_size * Root_Entries)
+dir_sectors               equ dir_size / Bytes_Per_Sector
+dir_buffer                equ fat_buffer + fat_size
+stage2_buffer             equ dir_buffer + dir_size
+first_data_sector         equ fats_reserved_sectors + dir_sectors
+
 
 Bytes_Per_Sector          equ 0x0200
 Sectors_Per_Cluster       equ 0x01
