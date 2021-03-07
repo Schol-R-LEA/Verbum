@@ -54,36 +54,16 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
+        mov bx, 0
+    .test_loop:
+        mov di, fat_mockup
+        call extract_next_fat12_entry
+        call print_hex_word
+        write nl
+        inc bx
+        cmp bx, 5
+        jl .test_loop
 
-        mov di, fat_mockup
-        mov bx, 0x0000
-        call extract_next_fat12_entry
-        call print_hex_word
-        write nl
-
-        mov di, fat_mockup
-        mov bx, 0x0001
-        call extract_next_fat12_entry
-        call print_hex_word
-        write nl
-        
-        mov di, fat_mockup
-        mov bx, 0x0002
-        call extract_next_fat12_entry
-        call print_hex_word
-        write nl
-
-        mov di, fat_mockup
-        mov bx, 0x0003
-        call extract_next_fat12_entry
-        call print_hex_word
-        write nl
-
-        mov di, fat_mockup
-        mov bx, 0x0003
-        call extract_next_fat12_entry
-        call print_hex_word
-        write nl
 
     .no_file:
 halted:
