@@ -5,6 +5,7 @@
 %define SIMPLE_DISK_HANDLING_CODE__INC
 
 %include "bios.inc"
+%include "macros.inc"
 %include "bpb.inc"
 %include "fat_entry.inc"
 %include "stage2_parameters.inc"

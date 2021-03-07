@@ -26,31 +26,25 @@
 %include "consts.inc"
 %include "bpb.inc"
 %include "fat_entry.inc"
+%include "fat-12.inc"
 %include "stage2_parameters.inc"
 %include "macros.inc"
 
-
-;;; local macros 
-%macro write 1
-        mov si, %1
-        call near print_str
-%endmacro
-
 ;;; constants
-boot_base        equ 0x0000      ; the segment base:offset pair for the
-boot_offset      equ 0x7C00      ; boot code entrypoint
+;boot_base        equ 0x0000      ; the segment base:offset pair for the
+;boot_offset      equ 0x7C00      ; boot code entrypoint
 
 ;; ensure that there is no segment overlap
 stack_segment    equ 0x1000  
 stack_top        equ 0xFFFE
 
-;;;operational constants 
+;;;operational constants
 
 high_nibble_mask equ 0x0FFF
 mid_nibble_mask  equ 0xFF0F
 nibble_shift     equ 4
 
-        
+
 [bits 16]
 [org boot_offset]
 [section .text]
@@ -66,7 +60,6 @@ entry:
 boot_bpb:
 %include "fat-12-data.inc"
 
-   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -96,168 +89,99 @@ start:
 
         ;; find the start of the stage 2 parameter frame
         ;;  and populated the frame
-;        mov cx, fat_buffer
-;        mov [bp + stg2_parameters.drive], dx
-;        mov [bp + stg2_parameters.fat_0], cx
-;        mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
-;        mov [bp + stg2_parameters.PnP_Entry_Off], di
-        ;; pointers to aux routines inside the boot loader
-;        mov [bp + stg2_parameters.reset_drive], word reset_disk
-;        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
-;        mov [bp + stg2_parameters.print_str], word print_str
-;        mov [bp + stg2_parameters.halt_loop], word halted
+        mov cx, fat_buffer
+        mov [bp + stg2_parameters.drive], dx
+        mov [bp + stg2_parameters.fat_0], cx
+        mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
+        mov [bp + stg2_parameters.PnP_Entry_Off], di
+       ;; pointers to aux routines inside the boot loader
+        mov [bp + stg2_parameters.reset_drive], word reset_disk
+        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
+        mov [bp + stg2_parameters.print_str], word print_str
+        mov [bp + stg2_parameters.halt_loop], word halted
 
 ;;; reset the disk drive
         call near reset_disk
 
-;;; read the first FAT into memory
-        mov cx, Sectors_Per_FAT_Short     
-        mov ax, 0
-        add ax, Reserved_Sectors          ; get location of the first FAT sector
+        mov ax, Reserved_Sectors          ; get location of the first FAT sector
         mov bx, fat_buffer
-    .fat_loop:
-        call near read_LBA_sector
-        add bx, Bytes_Per_Sector
-        loop .fat_loop
+        call read_fat
 
-;;; read the root directory into memory
-        mov cx, dir_sectors
+        mov ax, dir_sectors   
         mov bx, dir_buffer
-        mov ax, dir_start_sector
-    .dir_loop:
-        push cx
-        call near read_LBA_sector
-;;;;; test code
-;        cmp cx, word dir_sectors
-;        jl .dir_print_done
-;        push bx
-;        push ax
-;        mov cx, (dir_entry_size)
-;    .dir_entry_print:
-;        mov ax, [bx]
-;        call print_hex_byte
-;        inc bx
-;        mov ax, [bx]
-;        call print_hex_byte
-;        write space_char
-;        inc bx
-;        loop .dir_entry_print
-;        pop ax
-;        pop bx
-;.dir_print_done:
-;;;;; test code ends
-        add bx, Bytes_Per_Sector
-        pop cx
-        loop .dir_loop
+        call load_root_directory
 
-
-;;; seek the directory for the stage 2 file
-        mov bx, dir_buffer
-        mov cx, Root_Entries
-    .dir_entry_test:
-        mov di, bx
         mov si, snd_stage_file
-        push cx
-        mov cx, filename_length
-        repe cmpsb              ; is the directory entry == the stg2 file?
-        je .entry_found
-        add bx, dir_entry_size
-        pop cx
-        loop .dir_entry_test
-        jmp .no_file
+        mov di, dir_buffer
+        mov cx, Root_Entries
+        mov bx, dir_entry_size
+        call seek_directory_entry
 
+        
     .entry_found:
-
-;;;;; test code
-        push ax
-        mov ax, bx
-        call print_hex_word
-        pop ax
-;;;;; test code ends 
-
-        push bp
-        mov bp, bx
- 
+        mov si, bx
         ;; position of first sector
-        mov ax, [bp + directory_entry.file_size]
-;;;;; test code
-;        push ax
-;        call print_hex_word
-;        pop ax
-;;;;; test code ends 
-
-        mov dx, [bp + directory_entry.file_size + 1]
-        mov cx, Bytes_Per_Sector
-        div cx                  ; AX = number of sectors - 1
-        inc ax                  ; round up
-;;;;; test code
-;        push ax
-;        mov ax, bx
-;        sub ax, dir_buffer
-;        call print_hex_word
-;        pop ax
-;;;;; test code ends        
+        mov ax, [si + directory_entry.file_size]
         mov cx, ax
         ;; get the position for the first FAT entry
-        mov bx, [bp + directory_entry.cluster_lobits]
+        mov bx, [si + directory_entry.cluster_lobits]
 
-;;;;; test code
-;        push ax
-;        mov ax, bx      
-;        call print_hex_word
-;        pop ax
-;;;;; test code ends
-        
+
     .read_first_sector:
-        mov ax, [bx]            ; get the two bytes of the FAT entry
-        ;; if odd(BX), drop the top nibble of the high byte
-        and bx, 1
-        jnz .even
+        mov ax, [si]            ; get the two bytes of the FAT entry
+        mov di, si
+        inc di
+        ;; if even(SI), drop the top nibble of the high byte
+        and si, 1
+        jnz .odd
         and ax, high_nibble_mask
-        jmp .odd
+        jmp .even
         ;; else drop the bottom nibble of the low byte  
-    .even:
-        shr ax, nibble_shift
-        ;; find the sector based on the FAT entry   
     .odd:
-;;;;; test code
-;        push ax
-;        call print_hex_word
-;        pop ax
-;;;;; test code ends
-        
+        shr ax, nibble_shift
+        mov bl, byte [di]
+        and bl, high_nibble_mask
+        mov ah, bl
+        ;; find the sector based on the FAT entry   
+    .even:    
         mov bx, stage2_buffer
     ; requires all sectors of the stage 2 to be consecutive
     .get_sectors:
         call near read_LBA_sector
         loop .get_sectors
 
+;;;;;;; test code
+;        mov ax, 0x22
+;        call near read_LBA_sector
+;;;;;;; test code ends
+
+
     .stg2_read_finished:
-        pop bp                  ; restore bp
 
  ;;; jump to loaded second stage
         jmp stage2_buffer
         jmp short halted        ; in case of failure
  
     .no_file:
-        write failure_state
-        write read_failed
+;        write failure_state
+;        write read_failed
         jmp short halted
 
-
-;;;  backstop - it shouldn't ever actually print this message
-;;        write oops
-        
+;;;  
 halted:
+;        write exit
+    .halted_loop:
         hlt
-        jmp short halted
+        jmp short .halted_loop
    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
 %include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
-
+%include "read_fat_code.inc"
+%include "read_root_dir_code.inc"
+%include "dir_entry_seek_code.inc"
 
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -273,13 +197,13 @@ snd_stage_file  db 'STAGE2  SYS', NULL
 ;separator       db ':', NULL
 ;comma_done      db ', '
 ;done            db 'done.',
-;nl               db CR, LF, NULL
-failure_state   db 'Unable to ', NULL
+;nl              db CR, LF, NULL
+;failure_state   db 'Cannot ', NULL
 ;reset_failed    db 'reset,', NULL
-read_failed     db 'read,'
-exit            db ' halted.', NULL
+;read_failed     db 'read,', NULL
+;exit            db ' .', NULL
 ;oops            db 'Oops.', NULL 
-space_char      db ' ', NULL
+;space_char      db ' ', NULL
 ;Found           db 'Found at sector ', NULL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

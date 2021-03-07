@@ -5,6 +5,7 @@
 %define PRINT_HEX_CODE__INC
 
 %include "consts.inc"
+%include "macros.inc"
 %include "simple_text_print_code.inc"
 
 ;;; convert_hex - convert one byte to hexidecimal value   

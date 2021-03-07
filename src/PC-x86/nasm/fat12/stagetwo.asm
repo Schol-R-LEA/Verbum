@@ -24,49 +24,33 @@
 
 %include "bios.inc"
 %include "consts.inc"
+%include "macros.inc"
+%include "fat-12.inc"
 %include "stage2_parameters.inc"
 
-stage2_base     equ 0x0000     ; the segment:offset to load 
-stage2_offset   equ 0x7E00     ; the second stage into
+stage2_base     equ 0x0000            ; the segment:offset to load 
+stage2_offset   equ stage2_buffer     ; the second stage into
                         
 [bits 16]
-[org stage2_offset]
+[org stage2_base:stage2_offset]
 [section .text]
         
-entry:
+; entry:
 ;        mov ax, [bp + stg2_parameters.print_str]  
 ;        mov si, [success]
 ;        call ax
-%macro write 1
-   mov si, %1
-   call printstr
-%endmacro
 
-        mov ax, cs
-        mov ds, ax
+entry:
         write success
-        jmp short halted
+        jmp halted
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Auxilliary functions      
 
 ;; printstr - prints the string point to by SI
 
-printstr:
-        push ax
-        mov ah, ttype        ; set function to 'teletype mode'
-.print_char:   
-        lodsb               ; update byte to print
-        cmp al, NULL        ; test that it isn't NULL
-        jz short .endstr
-        int  VBIOS          ; put character in AL at next cursor position
-        jmp short .print_char
-.endstr:
-        pop ax
-        ret
-        
+%include "simple_text_print_code.inc"
 
-        
 halted:
         hlt
         jmp short halted
