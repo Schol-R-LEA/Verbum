@@ -1,0 +1,18 @@
+ASM = nasm -w+all -f bin
+COPY = dd
+FORMAT = mkfs.msdos -F 12 -n "VERBUM"
+REIMAGE=qemu-img
+SYS_INSTALL = ~/Deployments/ms-sys-2.5.3/bin/ms-sys --fat12 
+BOOT = fat-to-file_test
+DISKTARGET = boot.img
+DISKSIZE = 1440
+
+install: boot
+	dd if=/dev/zero of=$(DISKTARGET) count=$(DISKSIZE) bs=1k
+	$(FORMAT) $(DISKTARGET)
+	dd if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc
+	$(REIMAGE) convert -f raw -O qcow2 boot.img boot.qcow2
+
+boot:
+	$(ASM) $(BOOT).asm -o $(BOOT).bin -l $(BOOT).lst
+

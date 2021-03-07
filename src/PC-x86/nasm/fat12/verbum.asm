@@ -40,10 +40,6 @@ stack_top        equ 0xFFFE
 
 ;;;operational constants
 
-high_nibble_mask equ 0x0FFF
-mid_nibble_mask  equ 0xFF0F
-nibble_shift     equ 4
-
 
 [bits 16]
 [org boot_offset]
@@ -95,66 +91,45 @@ start:
         mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
         mov [bp + stg2_parameters.PnP_Entry_Off], di
        ;; pointers to aux routines inside the boot loader
-        mov [bp + stg2_parameters.reset_drive], word reset_disk
-        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
-        mov [bp + stg2_parameters.print_str], word print_str
-        mov [bp + stg2_parameters.halt_loop], word halted
+;        mov [bp + stg2_parameters.reset_drive], word reset_disk
+;        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
+;        mov [bp + stg2_parameters.print_str], word print_str
+;        mov [bp + stg2_parameters.halt_loop], word halted
 
 ;;; reset the disk drive
         call near reset_disk
 
-        mov ax, Reserved_Sectors          ; get location of the first FAT sector
-        mov bx, fat_buffer
-        call read_fat
+;        mov ax, Reserved_Sectors          ; get location of the first FAT sector
+;        mov bx, fat_buffer
+;        call read_fat
 
-        mov ax, dir_sectors   
+        mov ax, dir_sectors
         mov bx, dir_buffer
-        call load_root_directory
+        call near load_root_directory
 
         mov si, snd_stage_file
         mov di, dir_buffer
         mov cx, Root_Entries
         mov bx, dir_entry_size
-        call seek_directory_entry
+        call near seek_directory_entry
+        cmp bx, word 0
+        je .no_file
 
-        
     .entry_found:
         mov si, bx
         ;; position of first sector
         mov ax, [si + directory_entry.file_size]
-        mov cx, ax
+        mov dx, [si + directory_entry.file_size + 1]
+        mov cx, Bytes_Per_Sector
+        div cx
+        cmp dx, word 0
+        jz .no_remainder
+        inc ax                  ; if there is a remainder, round up
+    .no_remainder:
         ;; get the position for the first FAT entry
         mov bx, [si + directory_entry.cluster_lobits]
 
-
-    .read_first_sector:
-        mov ax, [si]            ; get the two bytes of the FAT entry
-        mov di, si
-        inc di
-        ;; if even(SI), drop the top nibble of the high byte
-        and si, 1
-        jnz .odd
-        and ax, high_nibble_mask
-        jmp .even
-        ;; else drop the bottom nibble of the low byte  
-    .odd:
-        shr ax, nibble_shift
-        mov bl, byte [di]
-        and bl, high_nibble_mask
-        mov ah, bl
-        ;; find the sector based on the FAT entry   
-    .even:    
-        mov bx, stage2_buffer
-    ; requires all sectors of the stage 2 to be consecutive
-    .get_sectors:
-        call near read_LBA_sector
-        loop .get_sectors
-
-;;;;;;; test code
-;        mov ax, 0x22
-;        call near read_LBA_sector
-;;;;;;; test code ends
-
+        call near fat_to_file
 
     .stg2_read_finished:
 
@@ -163,8 +138,8 @@ start:
         jmp short halted        ; in case of failure
  
     .no_file:
-;        write failure_state
-;        write read_failed
+        write failure_state
+        write read_failed
         jmp short halted
 
 ;;;  
@@ -177,12 +152,12 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
-%include "print_hex_code.inc"
+;%include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
-%include "read_fat_code.inc"
+; %include "read_fat_code.inc"
 %include "read_root_dir_code.inc"
 %include "dir_entry_seek_code.inc"
-
+%include "fat_to_file_code.inc"
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  data
@@ -198,9 +173,9 @@ snd_stage_file  db 'STAGE2  SYS', NULL
 ;comma_done      db ', '
 ;done            db 'done.',
 ;nl              db CR, LF, NULL
-;failure_state   db 'Cannot ', NULL
+failure_state   db 'Cannot ', NULL
 ;reset_failed    db 'reset,', NULL
-;read_failed     db 'read,', NULL
+read_failed     db 'read,', NULL
 ;exit            db ' .', NULL
 ;oops            db 'Oops.', NULL 
 ;space_char      db ' ', NULL
