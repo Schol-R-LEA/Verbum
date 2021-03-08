@@ -28,19 +28,20 @@ end_of_chain_mask     equ 0x0FF0
 ;;;       buffer to read file into
 fat_to_file:
     .read_loop:
-        push bx
-        mov cx, ax
         mov ax, bx
+        sub ax, 2
         add ax, first_data_sector
         mov bx, si
         call read_LBA_sector
-        pop bx
         call extract_next_fat12_entry
+        mov bx, ax
         test ax, end_of_chain_mask
         jz .end_of_file
+;        call print_hex_word
         jmp .read_loop
 
     .end_of_file:
+;        call print_hex_word
         ret
 
 ;;; extract_next_fat12_entry - read a FAT entry to

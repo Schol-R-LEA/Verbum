@@ -25,7 +25,14 @@ stack_top        equ 0xFFFE
 entry:
         jmp short start
         nop
-   
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
+
+boot_bpb:
+%include "fat-12-data.inc"
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -56,7 +63,9 @@ start:
 
         mov di, fat_mockup
         mov si, stage2_buffer
+        mov bx, 3
         call fat_to_file
+;        call print_hex_word
         
         mov bx, stage2_buffer
         mov cx, 16

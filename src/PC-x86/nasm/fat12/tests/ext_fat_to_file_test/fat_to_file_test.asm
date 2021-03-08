@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Test hexidecimal printing routines
+;;; Test second stage reading routines
 
 
 ;;; data structure definitions
@@ -25,7 +25,14 @@ stack_top        equ 0xFFFE
 entry:
         jmp short start
         nop
-   
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
+
+boot_bpb:
+%include "fat-12-data.inc"
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -46,7 +53,7 @@ start:
         ;; set the remaining segment registers to match CS
         mov ax, cs
         mov ds, ax
-        mov es, ax
+
 
         ;; any other housekeeping that needs to be done at the start
         cld
@@ -69,33 +76,32 @@ start:
         call near seek_directory_entry
         cmp bx, word 0
         je .no_file
+
+        call read_directory_details
+
+        mov di, fat_buffer
+        mov si, stage2_buffer
+        call fat_to_file
+;        call print_hex_word
         
-        mov ax, di
+        mov bx, stage2_buffer
+        mov cx, 16
+    .test_loop:
+        push cx
+        mov cx, 8
+        mov ah, 0
+    .inner_loop:
+        mov ax, word [bx]
         call print_hex_word
-        write nl
-
-;        mov si, snd_stage_file
-;        mov di, test_data
-;        push si
-;        mov ax, si
-;        call print_hex_word
-;        write comma
-;        mov ax, di
-;        call print_hex_word
-;        write nl
-;        pop si
-;        mov cx, 4
-;        mov bx, dir_entry_size
-;        call seek_directory_entry
-;        mov ax, di
-;        call print_hex_word
-;        write nl
-
-         jmp halted
+        add bx, 2
+        loop .inner_loop
+        pop cx
+        loop .test_loop
 
     .no_file:
         write failed
-        
+        jmp short halted
+
 halted:
         hlt
         jmp short halted
@@ -115,18 +121,12 @@ halted:
 ;;;  data
 ;;[section .data]
      
-;;[section .rodata]
+;;[section .rodata]      
+
 snd_stage_file      db 'STAGE2  SYS', NULL
-
-test_data  times 32 db 0
-                    db 'STAGE2  SYS'
-           times 15 db 0
-                    db 0x03, 0x51, 00
-
-comma               db ', ', NULL
-nl                  db CR,LF, NULL
 failed              db 'x', NULL
-
+nl                  db CR,LF, NULL
+        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; pad out to 510, and then add the last two bytes needed for a boot disk
 space     times (0x0200 - 2) - ($-$$) db 0

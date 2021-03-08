@@ -99,13 +99,13 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
-;        mov ax, Reserved_Sectors          ; get location of the first FAT sector
-;        mov bx, fat_buffer
-;        call read_fat
+        mov ax, Reserved_Sectors          ; get location of the first FAT sector
+        mov bx, fat_buffer
+        call read_fat
 
         mov ax, dir_sectors
         mov bx, dir_buffer
-        call near load_root_directory
+        call near read_root_directory
 
         mov si, snd_stage_file
         mov di, dir_buffer
@@ -115,19 +115,7 @@ start:
         cmp bx, word 0
         je .no_file
 
-    .entry_found:
-        mov si, bx
-        ;; position of first sector
-        mov ax, [si + directory_entry.file_size]
-        mov dx, [si + directory_entry.file_size + 1]
-        mov cx, Bytes_Per_Sector
-        div cx
-        cmp dx, word 0
-        jz .no_remainder
-        inc ax                  ; if there is a remainder, round up
-    .no_remainder:
-        ;; get the position for the first FAT entry
-        mov bx, [si + directory_entry.cluster_lobits]
+        call read_directory_details
 
         call near fat_to_file
 
@@ -154,7 +142,7 @@ halted:
 %include "simple_text_print_code.inc"
 ;%include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
-; %include "read_fat_code.inc"
+ %include "read_fat_code.inc"
 %include "read_root_dir_code.inc"
 %include "dir_entry_seek_code.inc"
 %include "fat_to_file_code.inc"

@@ -12,13 +12,13 @@
 
 %include "simple_disk_handling_code.inc"
 
-;;; load_root_directory
+;;; read_root_directory
 ;;; Inputs:
 ;;;       AX - sector to begin reading at
 ;;;       BX - buffer to read the entry to
 ;;; Outputs:
 ;;;       directory buffer
-load_root_directory:
+read_root_directory:
 ;;; read the root directory into memory
         pusha
         mov cx, dir_sectors
