@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Test second stage reading routines
+;;; Test FAT reading routine
 
 
 ;;; data structure definitions
@@ -25,7 +25,13 @@ stack_top        equ 0xFFFE
 entry:
         jmp short start
         nop
-   
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
+
+boot_bpb:
+%include "fat-12-data.inc"   
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -54,17 +60,17 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
-        mov di, fat_mockup
-        mov si, stage2_buffer
-        call fat_to_file
-        
-        mov bx, stage2_buffer
+        mov ax, fat_start_sector          ; get location of the first FAT sector
+        mov bx, fat_buffer
+        call read_fat  
+
+        mov bx, fat_buffer
         mov cx, 16
-    .test_loop:
+test_loop:
         push cx
         mov cx, 8
         mov ah, 0
-    .inner_loop:
+inner_loop:
         mov al, byte [bx]
         call print_hex_byte
         inc bx
@@ -72,10 +78,10 @@ start:
         call print_hex_byte
         inc bx
         write space_char
-        loop .inner_loop
+        loop inner_loop
         pop cx
-        loop .test_loop        
-
+        loop test_loop
+        
 halted:
         hlt
         jmp short halted
@@ -88,15 +94,11 @@ halted:
 %include "dir_entry_seek_code.inc"
 %include "simple_disk_handling_code.inc"
 %include "read_fat_code.inc"
-%include "fat_to_file_code.inc"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  data
 ;;[section .data]
      
-;;[section .rodata]      
-
-fat_mockup          db 0xF0, 0xFF, 0xFF, 0x00, 0xF0, 0xFF, 0x00, 0x00, 0x00, 0x00
-
+;;[section .rodata]
 space_char          db ' ', NULL
 nl                  db CR,LF, NULL
         

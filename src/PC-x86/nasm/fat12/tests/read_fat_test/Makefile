@@ -2,8 +2,8 @@ ASM = nasm -w+all -f bin
 COPY = dd
 FORMAT = mkfs.msdos -F 12 -n "VERBUM"
 REIMAGE=qemu-img
-SYS_INSTALL = ~/Deployments/ms-sys-2.5.3/bin/ms-sys --fat12
-BOOT = fat_to_file_test
+SYS_INSTALL = ~/Deployments/ms-sys-2.5.3/bin/ms-sys --fat12 
+BOOT = read_fat_test
 STAGE_TWO = stagetwo
 DISKTARGET = boot.img
 DISKSIZE = 1440
@@ -13,7 +13,7 @@ install: boot stage2
 	$(FORMAT) $(DISKTARGET)
 	dd if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc
 	mkdir temp
-	sudo mount -t vfat $(DISKTARGET) temp
+	sudo mount $(DISKTARGET) temp
 	sudo cp $(STAGE_TWO).bin temp/STAGE2.BIN
 	sudo umount temp
 	rmdir temp
@@ -24,3 +24,5 @@ boot:
 
 stage2:
 	$(ASM) $(STAGE_TWO).asm -o $(STAGE_TWO).bin -l $(STAGE_TWO).lst
+
+

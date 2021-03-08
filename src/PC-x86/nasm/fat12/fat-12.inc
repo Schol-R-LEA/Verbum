@@ -8,6 +8,7 @@ boot_base                 equ 0x0000      ; the segment base:offset pair for the
 boot_offset               equ 0x7C00      ; boot code entrypoint
 fat_size                  equ Sectors_Per_FAT_Short * Bytes_Per_Sector
 fats_reserved_sectors     equ Reserved_Sectors + (FATs * Sectors_Per_FAT_Short)
+fat_start_sector          equ Reserved_Sectors
 fat_buffer                equ boot_offset + Bytes_Per_Sector
 dir_start_sector          equ fats_reserved_sectors
 dir_entry_size            equ 0x20        ; 32 bytes per entry

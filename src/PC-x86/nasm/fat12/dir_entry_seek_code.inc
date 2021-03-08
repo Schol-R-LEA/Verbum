@@ -36,4 +36,31 @@ seek_directory_entry:
     .entry_found:
         ret
 
+
+;;; read_directory_details - 
+;;; Inputs:
+;;;       FAT buffer
+;;; Outputs:
+;;;       AX - low bytes of the file size
+;;;       DX - high bytes of the file size
+;;;       BX - First FAT entry of the file
+read_directory_details:
+        push cx
+        push si
+        mov si, bx
+        ;; position of first sector
+        mov bx, [si + directory_entry.cluster_lobits]
+        mov ax, [si + directory_entry.file_size]
+        mov dx, [si + directory_entry.file_size + 1]
+        mov cx, Bytes_Per_Sector
+        div cx
+        cmp dx, word 0
+        jz .no_remainder
+        inc ax                  ; if there is a remainder, round up
+    .no_remainder:
+        ;; get the position for the first FAT entry
+        pop si
+        pop cx
+        ret
+
 %endif

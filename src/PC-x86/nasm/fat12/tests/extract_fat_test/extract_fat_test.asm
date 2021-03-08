@@ -25,7 +25,14 @@ stack_top        equ 0xFFFE
 entry:
         jmp short start
         nop
-   
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
+
+boot_bpb:
+%include "fat-12-data.inc"
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -54,6 +61,11 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
+        mov ax, Reserved_Sectors          ; get location of the first FAT sector
+        mov bx, fat_buffer
+        call read_fat
+
+
         mov bx, 0
     .test_loop:
         mov di, fat_mockup
@@ -63,6 +75,19 @@ start:
         inc bx
         cmp bx, 5
         jl .test_loop
+
+        write nl
+
+        mov bx, 0
+    .test2_loop:
+        mov di, fat_buffer
+        call extract_next_fat12_entry
+        call print_hex_word
+        write nl
+        inc bx
+        cmp bx, 5
+        jl .test2_loop
+
 
 
     .no_file:
