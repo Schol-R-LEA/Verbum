@@ -13,26 +13,27 @@
 ;;; seek_directory_entry - seek the directory for the stage 2 file
 ;;; Inputs:
 ;;;       SI - address of the filename to match against
-;;;       directory buffer
 ;;;       DI - directory buffer
 ;;;       CX - max. number of entries
 ;;;       BX - size of an entry
 ;;; Outputs:
 ;;;       DI - location of the entry
 seek_directory_entry:
+        mov dx, bx
     .dir_entry_test:
-        push si
         push di
+        push si
         push cx
         mov cx, filename_length
         repe cmpsb              ; does the directory entry match?
-        pop cx
-        pop di
-        pop si
         je .entry_found
-        add di, bx
+        pop cx
+        pop si
+        pop di
+        add di, dx
+        add dx, bx 
         loop .dir_entry_test
-;        mov di, 0
+        mov di, 0               ; if not found, return 0
     .entry_found:
         ret
 

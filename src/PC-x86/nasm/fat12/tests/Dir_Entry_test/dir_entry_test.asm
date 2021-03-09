@@ -25,7 +25,15 @@ stack_top        equ 0xFFFE
 entry:
         jmp short start
         nop
-   
+ 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
+
+boot_bpb:
+%include "fat-12-data.inc"
+
+ 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -62,36 +70,37 @@ start:
         mov bx, dir_buffer
         call near read_root_directory
 
+
         mov si, snd_stage_file
         mov di, dir_buffer
-        mov cx, Root_Entries
+        mov cx, 4
         mov bx, dir_entry_size
         call near seek_directory_entry
+
+;        mov cx, 64
+;        mov di, dir_buffer
+;    .test_loop1:
+;        mov ax, [di]
+;        call print_hex_byte
+;        mov al, ah
+;        call print_hex_byte
+;        write space_char
+;        add di, 2
+;        loop .test_loop1    
+
+
         cmp bx, word 0
         je .no_file
-        
-        mov ax, di
-        call print_hex_word
-        write nl
+
 
 ;        mov si, snd_stage_file
 ;        mov di, test_data
-;        push si
-;        mov ax, si
-;        call print_hex_word
-;        write comma
-;        mov ax, di
-;        call print_hex_word
-;        write nl
-;        pop si
 ;        mov cx, 4
 ;        mov bx, dir_entry_size
 ;        call seek_directory_entry
-;        mov ax, di
-;        call print_hex_word
-;        write nl
 
-         jmp halted
+
+        jmp halted
 
     .no_file:
         write failed
@@ -118,12 +127,12 @@ halted:
 ;;[section .rodata]
 snd_stage_file      db 'STAGE2  SYS', NULL
 
-test_data  times 32 db 0
-                    db 'STAGE2  SYS'
-           times 15 db 0
-                    db 0x03, 0x51, 00
+;test_data  times 32 db 0
+;                    db 'STAGE2  SYS'
+;           times 15 db 0
+;                    db 0x03, 0x51, 00
 
-comma               db ', ', NULL
+space_char          db ' ', NULL
 nl                  db CR,LF, NULL
 failed              db 'x', NULL
 

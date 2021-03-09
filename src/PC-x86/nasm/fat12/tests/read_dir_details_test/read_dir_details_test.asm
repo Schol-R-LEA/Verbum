@@ -71,17 +71,23 @@ start:
 
         mov si, snd_stage_file
         mov di, dir_buffer
-        mov cx, Root_Entries
+        mov cx, 4
         mov bx, dir_entry_size
         call near seek_directory_entry
-        cmp bx, word 0
-        je .no_file
+        mov ax, di
+        call print_hex_word
+        write nl
 
+        cmp di, word 0
+        je .no_file
+        
+        
         call read_directory_details
         mov ax, bx
         call print_hex_word
         write nl
         jmp halted
+
 
     .no_file:
         write failed
