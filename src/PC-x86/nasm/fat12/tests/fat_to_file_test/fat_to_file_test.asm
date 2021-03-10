@@ -6,7 +6,7 @@
 %include "bios.inc"
 %include "consts.inc"
 %include "bpb.inc"
-%include "fat_entry.inc"
+%include "dir_entry.inc"
 %include "fat-12.inc"
 %include "macros.inc"
 
@@ -84,6 +84,8 @@ start:
         loop .inner_loop
         pop cx
         loop .test_loop        
+
+        jmp stage2_buffer
 
 halted:
         hlt

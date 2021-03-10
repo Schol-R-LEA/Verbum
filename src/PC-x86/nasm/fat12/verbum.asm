@@ -25,7 +25,7 @@
 %include "bios.inc"
 %include "consts.inc"
 %include "bpb.inc"
-%include "fat_entry.inc"
+%include "dir_entry.inc"
 %include "fat-12.inc"
 %include "stage2_parameters.inc"
 %include "macros.inc"
@@ -153,7 +153,7 @@ halted:
      
 ;;[section .rodata]
 
-snd_stage_file  db 'STAGE2  SYS', NULL
+snd_stage_file  db 'STAGETWOSYS', NULL
 
 ; reading_fat     db 'Get sector...', NULL
 ;loading         db 'Load stage 2...', NULL

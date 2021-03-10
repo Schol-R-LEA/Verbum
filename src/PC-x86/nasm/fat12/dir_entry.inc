@@ -4,8 +4,8 @@
 ;;; directory entries. It has been separated to allow it to be
 ;;; used separately from the boot sector code.
 
-%ifndef FAT_ENTRY__INC
-%define FAT_ENTRY__INC
+%ifndef DIR_ENTRY__INC
+%define DIR_ENTRY__INC
 
 struc directory_entry
         .filename        resb 8

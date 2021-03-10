@@ -7,7 +7,7 @@
 %include "bios.inc"
 %include "macros.inc"
 %include "bpb.inc"
-%include "fat_entry.inc"
+%include "dir_entry.inc"
 %include "stage2_parameters.inc"
 
 ;;; seek_directory_entry - seek the directory for the stage 2 file
@@ -19,21 +19,20 @@
 ;;; Outputs:
 ;;;       DI - location of the entry
 seek_directory_entry:
-        mov dx, bx
     .dir_entry_test:
         push di
         push si
         push cx
         mov cx, filename_length
         repe cmpsb              ; does the directory entry match?
-        je .entry_found
         pop cx
         pop si
         pop di
-        add di, dx
-        add dx, bx 
+        je .entry_found
+        add di, bx
         loop .dir_entry_test
-        mov di, 0               ; if not found, return 0
+        mov di, 0x0000          ; if not found, return 0
+        ret
     .entry_found:
         ret
 

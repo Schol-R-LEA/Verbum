@@ -7,7 +7,7 @@
 %include "bios.inc"
 %include "macros.inc"
 %include "bpb.inc"
-%include "fat_entry.inc"
+%include "dir_entry.inc"
 %include "stage2_parameters.inc"
 
 

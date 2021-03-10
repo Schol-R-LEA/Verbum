@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Test second stage reading routines
+;;; Test  routines
 
 
 ;;; data structure definitions
@@ -25,6 +25,7 @@ stack_top        equ 0xFFFE
 entry:
         jmp short start
         nop
+ 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; FAT12 Boot Parameter Block - required by FAT12 filesystem
@@ -32,7 +33,7 @@ entry:
 boot_bpb:
 %include "fat-12-data.inc"
 
-
+ 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
 ;;; This is the real begining of the code. The first order of
@@ -53,7 +54,7 @@ start:
         ;; set the remaining segment registers to match CS
         mov ax, cs
         mov ds, ax
-
+        mov es, ax
 
         ;; any other housekeeping that needs to be done at the start
         cld
@@ -61,37 +62,52 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
-        mov ax, Reserved_Sectors          ; get location of the first FAT sector
-        mov bx, fat_buffer
-        call read_fat
+;        mov ax, Reserved_Sectors          ; get location of the first FAT sector
+;        mov bx, fat_buffer
+;        call read_fat
 
-        mov ax, dir_sectors
-        mov bx, dir_buffer
-        call near read_root_directory
+;        mov ax, dir_buffer
+;        call print_hex_word
+;        write nl
+;        mov ax, dir_sectors
+;        mov bx, dir_buffer
+;        call near read_root_directory
+
+;        mov si, snd_stage_file
+;        mov di, dir_buffer
+;;        mov di, dir_mockup        
+;        mov cx, 4
+;        mov bx, dir_entry_size
+;        call near seek_directory_entry
+;        je .no_file
+
+        mov cx, 64
+        mov di, dir_mockup
+    .test_loop1:
+        mov al, [di]
+        call print_hex_byte
+        inc di
+        mov al, [di] 
+        inc di
+        call print_hex_byte
+        write space_char
+        loop .test_loop1    
+
 
         mov si, snd_stage_file
-        mov di, dir_buffer
-        mov cx, 4
+        mov di, dir_mockup
+        mov cx, 2
         mov bx, dir_entry_size
-        call near seek_directory_entry
-        mov ax, di
-        call print_hex_word
-        write nl
+        call seek_directory_entry
 
-        cmp di, word 0
-        je .no_file
-        
-        
-        call read_directory_details
         mov ax, bx
         call print_hex_word
-        write nl
-        jmp halted
 
+        jmp short halted
 
     .no_file:
         write failed
-
+        
 halted:
         hlt
         jmp short halted
@@ -103,24 +119,26 @@ halted:
 %include "print_hex_code.inc"
 %include "dir_entry_seek_code.inc"
 %include "simple_disk_handling_code.inc"
-%include "read_fat_code.inc"
-%include "read_root_dir_code.inc"
+;%include "read_fat_code.inc"
+;%include "read_root_dir_code.inc"
 %include "dir_entry_seek_code.inc"
 %include "fat_to_file_code.inc"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  data
 ;;[section .data]
      
-;;[section .rodata]      
-snd_stage_file  db 'STAGETWOSYS', NULL
+;;[section .rodata]
+snd_stage_file      db 'STAGETWOSYS', NULL
 
-dir_entry_mockup    db 'STAGE2  SYS'
-           times 15 db 0
-                    db 0x03, 00, 0x51, 00
+dir_mockup          db 0x56, 0x45, 0x52, 0x42, 0x55, 0x4D, 0x20, 0x20, 0x20, 0x20, 0x20, 0x08, 0x00, 0x00, 0x73, 0x89
+                    db 0x69, 0x52, 0x69, 0x52, 0x00, 0x00, 0x73, 0x89, 0x69, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                    db 0x53, 0x54, 0x41, 0x47, 0x45, 0x32, 0x20, 0x20, 0x42, 0x49, 0x4E, 0x20, 0x00, 0x21, 0x73, 0xB1
+                    db 0x69, 0x52, 0x69, 0x52, 0x00, 0x00, 0x73, 0xB1, 0x69, 0x52, 0x03, 0x00, 0x52, 0x00, 0x00, 0x00 
 
-failed              db 'x', NULL
+space_char          db ' ', NULL
 nl                  db CR,LF, NULL
-        
+failed              db 'x', NULL
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; pad out to 510, and then add the last two bytes needed for a boot disk
 space     times (0x0200 - 2) - ($-$$) db 0

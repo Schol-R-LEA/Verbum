@@ -1,12 +1,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Test hexidecimal printing routines
+;;; Test directory entry handling routines
 
 
 ;;; data structure definitions
 %include "bios.inc"
 %include "consts.inc"
 %include "bpb.inc"
-%include "fat_entry.inc"
+%include "dir_entry.inc"
 %include "fat-12.inc"
 %include "macros.inc"
 
@@ -64,43 +64,43 @@ start:
 
         mov ax, Reserved_Sectors          ; get location of the first FAT sector
         mov bx, fat_buffer
-        call read_fat
+        call near read_fat
 
+        mov ax, dir_buffer
         mov ax, dir_sectors
         mov bx, dir_buffer
         call near read_root_directory
 
+        mov si, snd_stage_file
+        mov di, dir_buffer      
+        mov cx, Root_Entries
+        mov bx, dir_entry_size
+        call near seek_directory_entry
+        je .no_file
+
+        mov cx, 64
+        mov di, dir_buffer
+    .test_loop1:
+        mov al, [di]
+        call near print_hex_byte
+        inc di
+        mov al, [di] 
+        inc di
+        call near print_hex_byte
+        write space_char
+        loop .test_loop1
+
 
         mov si, snd_stage_file
         mov di, dir_buffer
-        mov cx, 4
+        mov cx, 2
         mov bx, dir_entry_size
         call near seek_directory_entry
 
-;        mov cx, 64
-;        mov di, dir_buffer
-;    .test_loop1:
-;        mov ax, [di]
-;        call print_hex_byte
-;        mov al, ah
-;        call print_hex_byte
-;        write space_char
-;        add di, 2
-;        loop .test_loop1    
+;        mov ax, bx
+;        call print_hex_word
 
-
-        cmp bx, word 0
-        je .no_file
-
-
-;        mov si, snd_stage_file
-;        mov di, test_data
-;        mov cx, 4
-;        mov bx, dir_entry_size
-;        call seek_directory_entry
-
-
-        jmp halted
+        jmp short halted
 
     .no_file:
         write failed
@@ -125,12 +125,12 @@ halted:
 ;;[section .data]
      
 ;;[section .rodata]
-snd_stage_file      db 'STAGE2  SYS', NULL
+snd_stage_file      db 'STAGETWOSYS', NULL
 
-;test_data  times 32 db 0
-;                    db 'STAGE2  SYS'
-;           times 15 db 0
-;                    db 0x03, 0x51, 00
+;dir_mockup          db 0x56, 0x45, 0x52, 0x42, 0x55, 0x4D, 0x20, 0x20, 0x20, 0x20, 0x20, 0x08, 0x00, 0x00, 0x73, 0x89
+;                    db 0x69, 0x52, 0x69, 0x52, 0x00, 0x00, 0x73, 0x89, 0x69, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+;                    db 0x53, 0x54, 0x41, 0x47, 0x45, 0x32, 0x20, 0x20, 0x42, 0x49, 0x4E, 0x20, 0x00, 0x21, 0x73, 0xB1
+;                    db 0x69, 0x52, 0x69, 0x52, 0x00, 0x00, 0x73, 0xB1, 0x69, 0x52, 0x03, 0x00, 0x52, 0x00, 0x00, 0x00 
 
 space_char          db ' ', NULL
 nl                  db CR,LF, NULL

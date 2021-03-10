@@ -3,9 +3,9 @@
 
 
 ;;; data structure definitions
-%include "../../bios.inc"
-%include "../../consts.inc"
-%include "../../macros.inc"
+%include "bios.inc"
+%include "consts.inc"
+%include "macros.inc"
 
 
 ;;; local macros 
