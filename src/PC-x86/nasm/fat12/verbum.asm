@@ -40,10 +40,9 @@ stack_top        equ 0xFFFE
 
 ;;;operational constants
 
-
-[bits 16]
-[org boot_offset]
-[section .text]
+bits 16
+org boot_offset
+section .text
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; entry - the entrypoint to the code. Make a short jump past the BPB.
 entry:

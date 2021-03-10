@@ -31,9 +31,9 @@
 stage2_base     equ 0x0000            ; the segment:offset to load 
 stage2_offset   equ stage2_buffer     ; the second stage into
                         
-[bits 16]
-[org stage2_base:stage2_offset]
-[section .text]
+bits 16
+org stage2_offset
+section .text
         
 ; entry:
 ;        mov ax, [bp + stg2_parameters.print_str]  

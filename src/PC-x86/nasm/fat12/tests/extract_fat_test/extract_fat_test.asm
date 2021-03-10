@@ -1,12 +1,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Test hexidecimal printing routines
+;;; Test extracting FAT entries
 
 
 ;;; data structure definitions
 %include "bios.inc"
 %include "consts.inc"
 %include "bpb.inc"
-%include "fat_entry.inc"
+%include "dir_entry.inc"
 %include "fat-12.inc"
 %include "macros.inc"
 
@@ -16,10 +16,10 @@ stack_segment    equ 0x1000
 stack_top        equ 0xFFFE
 
 
-        
-[bits 16]
-[org boot_offset]
-[section .text]
+bits 16
+org boot_offset
+section .text
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; entry - the entrypoint to the code. Make a short jump past the BPB.
 entry:

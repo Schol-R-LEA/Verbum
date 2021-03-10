@@ -7,13 +7,6 @@
 %include "consts.inc"
 %include "macros.inc"
 
-
-;;; local macros 
-%macro write 1
-        mov si, %1
-        call near print_str
-%endmacro
-
 ;;; constants
 boot_base        equ 0x0000      ; the segment base:offset pair for the
 boot_offset      equ 0x7C00      ; boot code entrypoint
@@ -22,9 +15,10 @@ boot_offset      equ 0x7C00      ; boot code entrypoint
 stack_segment    equ 0x1000  
 stack_top        equ 0xFFFE
 
-[bits 16]
-[org boot_offset]
-[section .text]
+bits 16
+org boot_offset
+section .text
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; entry - the entrypoint to the code. Make a short jump past the BPB.
 entry:
