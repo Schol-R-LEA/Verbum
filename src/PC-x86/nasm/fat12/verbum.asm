@@ -43,6 +43,7 @@ stack_top        equ 0xFFFE
 bits 16
 org boot_offset
 section .text
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; entry - the entrypoint to the code. Make a short jump past the BPB.
 entry:
@@ -113,9 +114,11 @@ start:
         call near seek_directory_entry
         cmp bx, word 0
         je .no_file
-
+        
         call read_directory_details
 
+        mov di, fat_buffer
+        mov si, stage2_buffer
         call near fat_to_file
 
     .stg2_read_finished:
@@ -141,7 +144,7 @@ halted:
 %include "simple_text_print_code.inc"
 ;%include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
- %include "read_fat_code.inc"
+%include "read_fat_code.inc"
 %include "read_root_dir_code.inc"
 %include "dir_entry_seek_code.inc"
 %include "fat_to_file_code.inc"

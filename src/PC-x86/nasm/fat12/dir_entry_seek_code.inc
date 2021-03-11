@@ -24,7 +24,7 @@ seek_directory_entry:
         push si
         push cx
         mov cx, filename_length
-        repe cmpsb              ; does the directory entry match?
+        repne cmpsb             ; does the directory entry match?
         pop cx
         pop si
         pop di
