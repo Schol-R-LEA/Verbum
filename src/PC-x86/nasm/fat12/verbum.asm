@@ -31,8 +31,6 @@
 %include "macros.inc"
 
 ;;; constants
-;boot_base        equ 0x0000      ; the segment base:offset pair for the
-;boot_offset      equ 0x7C00      ; boot code entrypoint
 
 ;; ensure that there is no segment overlap
 stack_segment    equ 0x1000  
@@ -47,7 +45,7 @@ section .text
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; entry - the entrypoint to the code. Make a short jump past the BPB.
 entry:
-        jmp short start
+        jmp short redirect
         nop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -55,6 +53,10 @@ entry:
 
 boot_bpb:
 %include "fat-12-data.inc"
+
+redirect:
+        jmp boot_base:start
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; start
@@ -90,6 +92,7 @@ start:
         mov [bp + stg2_parameters.fat_0], cx
         mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
         mov [bp + stg2_parameters.PnP_Entry_Off], di
+        mov [bp + stg2_parameters.boot_sig], word bootsig
        ;; pointers to aux routines inside the boot loader
 ;        mov [bp + stg2_parameters.reset_drive], word reset_disk
 ;        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
@@ -134,7 +137,7 @@ start:
 
 ;;;  
 halted:
-;        write exit
+        write exit
     .halted_loop:
         hlt
         jmp short .halted_loop
@@ -166,7 +169,7 @@ snd_stage_file  db 'STAGETWOSYS', NULL
 failure_state   db 'Cannot ', NULL
 ;reset_failed    db 'reset,', NULL
 read_failed     db 'read,', NULL
-;exit            db ' .', NULL
+exit            db ' halting.', NULL
 ;oops            db 'Oops.', NULL 
 ;space_char      db ' ', NULL
 ;Found           db 'Found at sector ', NULL

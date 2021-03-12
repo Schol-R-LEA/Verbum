@@ -14,7 +14,8 @@ install: boot stage2
 	$(COPY) if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc
 	mkdir temp
 	sudo mount $(DISKTARGET) temp
-	sudo cp $(STAGE_TWO).bin temp/STAGETWO.BIN
+	sudo cp dummy.txt temp/DUMMY.TXT
+	sudo cp $(STAGE_TWO).bin temp/STAGETWO.SYS
 	sudo umount temp
 	rmdir temp
 	$(REIMAGE) convert -f raw -O qcow2 boot.img boot.qcow2

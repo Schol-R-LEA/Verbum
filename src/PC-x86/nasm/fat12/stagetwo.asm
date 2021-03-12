@@ -1,26 +1,6 @@
 ;;;;;;;;;;;;;;;;;
 ;; stagetwo.asm - second stage boot loader
-;; 
-;; v 0.01  Alice Osako 3 June 2002
-;; v 0.02  Alice Osako 7 Sept 2006
-;;         * restarted project, files place under source control.
-;;         * Modifications for FAT12 based loader begun.
-;;;Version History (note: build versions not shown) 
-;;;pre      - June 2002 to February 2004 - early test versions
-;;;               * sets segments, loads image from second sector          
-;;;v 0.01 - 28 February 2004 Alice Osako 
-;;;              * Code base cleaned up
-;;;              * Added BPB data for future FAT12 support
-;;;              * renamed "Verbum Boot Loader"
-;;;v0.02 - 8 May 2004 Alice Osako
-;;;              *  moved existing disk handling into separate functions
-;;;v0.03 - 7 Sept 2006 Alice Osako
-;;;              * resumed work on project. Placed source files under
-;;;                version control (SVN)
-;;;v0.04 - 18 April 2016 - restarting project, set up on Github
-;;;v0.05 - 16 August 2017 - restructuring project, working on FAT12
-;;;              support and better documentation
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 %include "bios.inc"
 %include "consts.inc"
@@ -35,32 +15,118 @@ bits 16
 org stage2_offset
 section .text
         
-; entry:
-;        mov ax, [bp + stg2_parameters.print_str]  
-;        mov si, [success]
-;        call ax
-
 entry:
         write success
+        write newline
+
+A20_enable:
+        write A20_gate_status
+        lea di, [bp + stg2_parameters.boot_sig]
+        call test_A20
+        je .A20_on
+
+    .A20_off:
+        write off
+
+    .A20_bios_attempt:
+;;; parts of this code based on examples given in the 
+;;; A20 page of the OSDev wiki (https://wiki.osdev.org/A20_Line)
+
+;        mov ax, A20_supported  
+;        int A20BIOS
+;        jb .a20_no_bios_support
+;        cmp ah, 0
+;        jnz .a20_no_bios_support 
+ 
+;        mov ax, A20_status
+;        int A20BIOS
+;        jb .a20_no_bios_support     ; couldn't get status
+;        cmp ah, 0
+;        jnz .a20_no_bios_support    ; couldn't get status
+ 
+ ;       cmp al, 1
+ ;       jz .A20_on                   ; A20 is already activated
+ 
+;        mov ax, A20_activate
+;        int A20BIOS 
+;        jb .a20_no_bios_support     ; couldn't activate the gate
+;        cmp ah, 0
+;        jz .A20_on                   ; couldn't activate the gate
+        
+    .a20_no_bios_support:
+        call test_A20
+        je .A20_on
+
+    .a20_failed:
+        write no_A20_Gate
         jmp halted
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Auxilliary functions      
 
-;; printstr - prints the string point to by SI
+    .A20_on:
+        write newline      
+        write on
 
-%include "simple_text_print_code.inc"
-
+;;; halt the CPU
 halted:
+        write newline
+        write exit
+    .halted_loop:
         hlt
-        jmp short halted
+        jmp short .halted_loop
         
-        
-        
+
+;;; test_A20 - check to see if the A20 line is enabled
+;;; Inputs:
+;;;       SI - effective address to test
+;;;       DS - data segment of the tested address
+;;; Outputs:
+;;;       Zero flag - set = A20 on, clear = A20 off
+test_A20:
+        push ax
+        push bx
+        push cx
+        push dx
+        push es
+
+        mov cx, 2
+    .test_loop:
+        mov ax, 0xFFFF
+        mov es, ax
+        mov di, si
+        add di, 0x10            ; 16 byte difference due to segment spacing
+        mov bx, word [ds:si]
+        mov dx, word [es:di]
+        cmp bx, dx
+        mov [ds:si], word 0xDEAD
+        mov [es:di], word 0xBEEF
+        loopne .test_loop
+    .cleanup:
+        pop es
+        pop dx
+        pop cx
+        pop bx
+        pop ax
+        ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;Auxilliary functions      
+%include "simple_text_print_code.inc"
+%include "print_hex_code.inc"
+%include "simple_disk_handling_code.inc"
+%include "read_fat_code.inc"
+%include "read_root_dir_code.inc"
+%include "dir_entry_seek_code.inc"
+%include "fat_to_file_code.inc"
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 ;;         [section .data]
-        
-success   db 'Control successfully transferred to second stage.', CR, LF, NULL
 
+newline           db CR, LF, NULL
+exit              db 'Halted.', CR, LF, NULL
 
+success           db 'Control successfully transferred to second stage.', CR, LF, NULL
+A20_gate_status   db 'A20 Line Status: ', NULL
+on                db 'on.', CR, LF, NULL
+off               db 'off, ', CR, LF, NULL
+no_A20_Gate       db 'A20 gate not found.', CR, LF, NULL
