@@ -14,11 +14,6 @@ disk_read       equ 0x02        ;; disk read service
 
 MBIOS           equ 0x12
 
-A20BIOS         equ 0x15
-A20_supported   equ 0x2403
-A20_status      equ 0x2402
-A20_activate    equ 0x2401
-
         
 ;;;BIOS error codes
 reset_failure   equ 0x01        ;; error code returned on disk reset failure
