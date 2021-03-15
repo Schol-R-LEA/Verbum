@@ -93,44 +93,53 @@ start:
         mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
         mov [bp + stg2_parameters.PnP_Entry_Off], di
         mov [bp + stg2_parameters.boot_sig], word bootsig
-       ;; pointers to aux routines inside the boot loader
-;        mov [bp + stg2_parameters.reset_drive], word reset_disk
-;        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
-;        mov [bp + stg2_parameters.print_str], word print_str
-;        mov [bp + stg2_parameters.halt_loop], word halted
 
 ;;; reset the disk drive
         call near reset_disk
-
-        mov ax, Reserved_Sectors          ; get location of the first FAT sector
-        mov bx, fat_buffer
+        cmp ax, 0xFFFF
+        jne .read_fat_sectors
+        write failure_state
+        write reset_failed
+        jmp halted
+        
+    .read_fat_sectors:
+        mov ax, fat_start_sector          ; get location of the first FAT sector
+        mov di, fat_buffer
         call read_fat
+;        cmp ax, 0xFFFF
+;        jne .read_root_directory
+;        jmp halted
 
-        mov ax, dir_sectors
-        mov bx, dir_buffer
-        call near read_root_directory
+    .read_root_directory:
+         mov di, dir_buffer
+         call near read_root_directory
+        cmp ax, 0xFFFF
+        jne .read_root_directory
+        jmp no_file
 
         mov si, snd_stage_file
         mov di, dir_buffer
         mov cx, Root_Entries
         mov bx, dir_entry_size
         call near seek_directory_entry
-        cmp bx, word 0
-        je .no_file
-        
+        cmp di, 0
+        je no_file
         call read_directory_details
 
-        mov di, fat_buffer
-        mov si, stage2_buffer
+        mov ax, bx
+        mov si, fat_buffer
+        mov di, stage2_buffer
         call near fat_to_file
 
     .stg2_read_finished:
 
  ;;; jump to loaded second stage
-        jmp stage2_buffer
-        jmp short halted        ; in case of failure
  
-    .no_file:
+        jmp stage2_buffer
+        write oops
+        jmp short halted        ; in case of failure
+        
+no_file:
         write failure_state
         write read_failed
         jmp short halted
@@ -167,10 +176,11 @@ snd_stage_file  db 'STAGETWOSYS', NULL
 ;done            db 'done.',
 ;nl              db CR, LF, NULL
 failure_state   db 'Cannot ', NULL
-;reset_failed    db 'reset,', NULL
+reset_failed    db 'reset,', NULL
 read_failed     db 'read,', NULL
-exit            db ' halting.', NULL
-;oops            db 'Oops.', NULL 
+;seek_failed     db 'find.', NULL
+exit            db ' exit', NULL
+oops            db 'Oops.', NULL 
 ;space_char      db ' ', NULL
 ;Found           db 'Found at sector ', NULL
 

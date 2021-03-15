@@ -61,14 +61,16 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
-        mov di, fat_mockup
-        mov si, stage2_buffer
-        mov bx, 3
+        mov si, fat_mockup
+        mov di, stage2_buffer
+        mov ax, 0x09
         call fat_to_file
-;        call print_hex_word
-        
+        cmp ax, 0xFFFF
+        je no_file
+        call print_hex_word
+
         mov bx, stage2_buffer
-        mov cx, 16
+        mov cx, 64
     .test_loop:
         push cx
         mov cx, 8
@@ -85,11 +87,17 @@ start:
         pop cx
         loop .test_loop        
 
-        jmp stage2_buffer
+;        jmp stage2_buffer
+        jmp halted
+
+no_file:
+        write read_failed
 
 halted:
+        write exit
+.halt_loop:
         hlt
-        jmp short halted
+        jmp short .halt_loop
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -106,11 +114,15 @@ halted:
      
 ;;[section .rodata]      
 
-fat_mockup          db 0xF0, 0xFF, 0xFF, 0x00, 0xF0, 0xFF, 0x00, 0x00, 0x00, 0x00
+fat_mockup          db 0xF0, 0xFF, 0xFF, 0x00, 0x40, 0x00, 0x05, 0x60
+                    db 0x00, 0x07, 0x80, 0x00, 0xFF, 0xAF, 0x00, 0xFF
+                    db 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 space_char          db ' ', NULL
 nl                  db CR,LF, NULL
-        
+
+exit                db 'exit.', NULL
+read_failed         db 'x', NULL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; pad out to 510, and then add the last two bytes needed for a boot disk
 space     times (0x0200 - 2) - ($-$$) db 0

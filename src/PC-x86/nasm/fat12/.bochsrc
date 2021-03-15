@@ -10,14 +10,14 @@ memory: guest=32, host=64
 cpu: count=1, ips=100000000
 
 # filename of ROM images
-romimage: file="$BXSHARE/BIOS-bochs-latest"
-vgaromimage: file="$BXSHARE/VGABIOS-lgpl-latest"
+romimage: file="$BXSHARE/bios/BIOS-bochs-latest"
+vgaromimage: file="$BXSHARE/bios/VGABIOS-lgpl-latest"
 vga: extension=vbe
 
 #ne2k: ioaddr=0x300, irq=0x0a, mac=b0:c4:20:00:00:00, ethmod=linux, ethdev=enp6s0
 
 #display configuration and library
-config_interface: textconfig
+config_interface: wx
 display_library: wx
 
 # what disk images will be used

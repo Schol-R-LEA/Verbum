@@ -57,7 +57,7 @@ start:
         ;; any other housekeeping that needs to be done at the start
         cld
 
-        mov cx, 64
+        mov cx, 24
         mov ax, 0       
 .test_loop:
         push cx

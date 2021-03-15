@@ -9,3 +9,5 @@ boot: c
 log: bochsout.txt
 mouse: enabled=0
 cpu: ips=15000000
+config_interface: wx
+display_library: wx

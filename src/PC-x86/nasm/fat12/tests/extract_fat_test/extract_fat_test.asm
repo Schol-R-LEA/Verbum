@@ -62,13 +62,13 @@ start:
         call near reset_disk
 
         mov ax, Reserved_Sectors          ; get location of the first FAT sector
-        mov bx, fat_buffer
+        mov di, fat_buffer
         call read_fat
 
 
         mov bx, 0
     .test_loop:
-        mov di, fat_mockup
+        mov si, fat_mockup
         call extract_next_fat12_entry
         call print_hex_word
         write nl
@@ -80,7 +80,7 @@ start:
 
         mov bx, 0
     .test2_loop:
-        mov di, fat_buffer
+        mov si, fat_buffer
         call extract_next_fat12_entry
         call print_hex_word
         write nl

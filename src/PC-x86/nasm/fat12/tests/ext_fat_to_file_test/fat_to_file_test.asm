@@ -61,13 +61,17 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
-        mov ax, Reserved_Sectors          ; get location of the first FAT sector
-        mov bx, fat_buffer
+        mov si, Reserved_Sectors          ; get location of the first FAT sector
+        mov di, fat_buffer
         call read_fat
+;        cmp ax, 0xFFFF
+;        je .no_file
 
-        mov ax, dir_sectors
-        mov bx, dir_buffer
+        mov si, dir_sectors
+        mov di, dir_buffer
         call near read_root_directory
+;        cmp ax, 0xFFFF
+;        je .no_file
 
         mov si, snd_stage_file
         mov di, dir_buffer
@@ -79,11 +83,11 @@ start:
 
         call read_directory_details
 
-        mov di, fat_buffer
-        mov si, stage2_buffer
+        mov si, fat_buffer
+        mov di, stage2_buffer
         call fat_to_file
-;        call print_hex_word
-        
+        call print_hex_word
+
         mov bx, stage2_buffer
         mov cx, 16
     .test_loop:

@@ -90,7 +90,7 @@ start:
         mov al, [di] 
         inc di
         call print_hex_byte
-        write space_char
+;        write space_char
         loop .test_loop1    
 
 

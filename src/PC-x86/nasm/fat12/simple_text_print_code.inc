@@ -24,4 +24,15 @@ print_str:
         popa
         ret
 
+
+print_char:
+        pusha
+        mov ah, ttype
+        zero(bx)
+        mov cx, 1        
+        int  VBIOS          ; put character in AL at next cursor position
+        popa
+        ret    
+
+
 %endif

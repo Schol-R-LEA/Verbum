@@ -61,40 +61,37 @@ start:
 ;;; reset the disk drive
         call near reset_disk
 
-;        mov ax, Reserved_Sectors          ; get location of the first FAT sector
-;        mov bx, fat_buffer
-;        call near read_fat
+        mov ax, fat_start_sector          ; get location of the first FAT sector
+        mov di, fat_buffer
+        call near read_fat
+        cmp ax, 0xFFFF
+        jne .read_root_directory
+        jmp halted
 
- ;       mov ax, dir_sectors
- ;       mov bx, dir_buffer
- ;       call near read_root_directory
+    .read_root_directory:
+        mov ax, dir_sectors
+        mov di, dir_buffer
+        call near read_root_directory
 
         mov si, snd_stage_file
-        mov di, dir_mockup      
+        mov di, dir_buffer      
         mov cx, Root_Entries
         mov bx, dir_entry_size
         call near seek_directory_entry
         cmp di, word 0
         je .no_file
 
-        mov ax, di
-        call print_hex_word
-;        write space_char
-;        mov ax, dir_buffer
-;        call print_hex_word        
-;        write nl
-
-;        mov cx, 64
-;        mov di, dir_buffer
-;    .test_loop1:
-;        mov al, [di]
-;        call near print_hex_byte
-;        inc di
-;        mov al, [di] 
-;        inc di
-;        call near print_hex_byte
-;        write space_char
-;        loop .test_loop1
+        mov cx, 256
+        mov di, dir_buffer
+    .test_loop1:
+        mov al, [di]
+        call near print_hex_byte
+        inc di
+        mov al, [di] 
+        inc di
+        call near print_hex_byte
+        write space_char
+        loop .test_loop1
 
         jmp short halted
 
@@ -114,8 +111,8 @@ halted:
 %include "simple_disk_handling_code.inc"
 %include "read_fat_code.inc"
 %include "read_root_dir_code.inc"
-%include "dir_entry_seek_code.inc"
-%include "fat_to_file_code.inc"
+;%include "dir_entry_seek_code.inc"
+;%include "fat_to_file_code.inc"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  data
 ;;[section .data]
@@ -128,7 +125,7 @@ dir_mockup          db 0x56, 0x45, 0x52, 0x42, 0x55, 0x4D, 0x20, 0x20, 0x20, 0x2
                     db 0x53, 0x54, 0x41, 0x47, 0x45, 0x32, 0x20, 0x20, 0x42, 0x49, 0x4E, 0x20, 0x00, 0x21, 0x73, 0xB1
                     db 0x69, 0x52, 0x69, 0x52, 0x00, 0x00, 0x73, 0xB1, 0x69, 0x52, 0x03, 0x00, 0x52, 0x00, 0x00, 0x00 
 
-;space_char          db ' ', NULL
+space_char          db ' ', NULL
 nl                  db CR,LF, NULL
 failed              db 'x', NULL
 

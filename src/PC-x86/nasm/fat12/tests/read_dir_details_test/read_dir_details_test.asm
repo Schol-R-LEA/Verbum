@@ -60,18 +60,30 @@ start:
 
 ;;; reset the disk drive
         call near reset_disk
+        cmp ax, 0xFFFF
+        jne .read_fat_sectors
+        write failure_state
+        write reset_failed
+        jmp halted
 
+    .read_fat_sectors:
         mov ax, Reserved_Sectors          ; get location of the first FAT sector
-        mov bx, fat_buffer
+        mov di, fat_buffer
         call read_fat
+        cmp ax, 0xFFFF
+        jne .read_root_directory
+        jmp halted
 
-        mov ax, dir_sectors
-        mov bx, dir_buffer
+    .read_root_directory:
+        mov di, dir_buffer
         call near read_root_directory
+        cmp ax, 0xFFFF
+        jne .read_root_directory
+        jmp no_file
 
         mov si, snd_stage_file
         mov di, dir_buffer
-        mov cx, 4
+        mov cx, Root_Entries
         mov bx, dir_entry_size
         call near seek_directory_entry
         mov ax, di
@@ -79,8 +91,7 @@ start:
         write nl
 
         cmp di, word 0
-        je .no_file
-        
+        je no_file
         
         call read_directory_details
         mov ax, bx
@@ -89,7 +100,7 @@ start:
         jmp halted
 
 
-    .no_file:
+no_file:
         write failed
 
 halted:
@@ -114,9 +125,9 @@ halted:
 ;;[section .rodata]      
 snd_stage_file  db 'STAGETWOSYS', NULL
 
-dir_entry_mockup    db 'STAGE2  SYS'
-           times 15 db 0
-                    db 0x03, 00, 0x51, 00
+;dir_entry_mockup    db 'STAGE2  SYS'
+;           times 15 db 0
+;                    db 0x03, 00, 0x51, 00
 
 failed              db 'x', NULL
 nl                  db CR,LF, NULL

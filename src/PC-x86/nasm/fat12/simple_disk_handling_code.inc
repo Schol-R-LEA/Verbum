@@ -25,34 +25,36 @@ reset_disk:
         dec di
         jnz short .try_reset
         ;;; if repeated attempts to reset the disk fail, report error code
- ;       write failure_state
- ;       write reset_failed
- ;       write exit
-        jmp halted
+        mov ax, 0xFFFF
     .reset_end:
         ret
    
 
-;;; read_LBA_sector - read a sector from a Linear Block Address 
+;;; read_LBA_sectors - read n sectors from a Linear Block Address 
 ;;; Inputs: 
 ;;;       AX = Linear Block Address to read from
+;;;       BL = number of sectors to read
 ;;;       ES = Segment to write result to
-;;;       BX = offset to write result to
+;;;       DI = offset to write result to
 ;;; Outputs:
 ;;;       AX = LBA+1 (i.e., the increment of previous LBA value) 
-;;;       ES:BX - buffer written to
+;;;       ES:DI - buffer written to
 
-read_LBA_sector:
-        pusha
+read_LBA_sectors:
+        push ax
         call near LBA_to_CHS
-        mov ah, dh              ; temporary swap
-        mov dx, [bp + stg2_parameters.drive] ; get the value for DL
-        mov dh, ah
-        mov al, 1
+        mov dl, byte [bp + stg2_parameters.drive] ; get the value for DL
+        mov al, bl
+        mov bx, di
         call near read_sectors
+        cmp ax, 0xFFFF
+        je .read_failed
     .read_end:                  ; read_LBA_sector
-        popa
+        pop ax
         inc ax
+        ret
+    .read_failed:
+        pop ax
         ret
 
 
@@ -103,7 +105,7 @@ LBA_to_CHS:
 ;;;       ES:BX = segment and offset for the buffer 
 ;;;               to save the read sector into
 read_sectors:
-        pusha
+        push di
         mov si, 0
         mov di, tries        ; set count of attempts for disk reads
         mov ah, disk_read
@@ -115,12 +117,9 @@ read_sectors:
         dec di
         jnz short .try_read
         ; if repeated attempts to read the disk fail, report error code
-;        write failure_state
-;        write read_failed    ; fall-thru to 'exit', don't needs separate write
-        jmp halted
-        
+        mov ax, 0xFFFF
   .read_end:
-        popa
+        pop di
         ret
 
 %endif

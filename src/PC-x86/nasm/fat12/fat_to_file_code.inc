@@ -21,34 +21,35 @@ end_of_chain_mask     equ 0x0FF0
 ;;;               get the file sectors it maps to
 ;;;               and read those sectors into a buffer
 ;;; Inputs:
-;;;       BX - starting FAT entry
-;;;       DI - FAT buffer
-;;;       SI - buffer to read the entry to
+;;;       AX - starting FAT entry
+;;;       SI - FAT buffer
+;;;       DI - buffer to read the entry to
 ;;; Outputs:
 ;;;       buffer to read file into
 fat_to_file:
-    .read_loop:
-        mov ax, bx
-        sub ax, 2
         add ax, first_data_sector
-        mov bx, si
-        call read_LBA_sector
-        call extract_next_fat12_entry
-        mov bx, ax
-        test ax, end_of_chain_mask
-        jz .end_of_file
-;        call print_hex_word
-        jmp .read_loop
 
+    .read_loop:
+        mov bl, 1
+        call read_LBA_sectors
+        cmp ax, 0xFFFF
+        je .end_of_file
+        call extract_next_fat12_entry
+        mov cx, ax
+        and cx, end_of_chain_mask
+        cmp cx, end_of_chain_mask
+        je .end_of_file
+        inc ax
+        add di, Bytes_Per_Sector
+        jmp .read_loop
     .end_of_file:
-;        call print_hex_word
         ret
 
 ;;; extract_next_fat12_entry - read a FAT entry to
 ;;;               see where the next FAT entry is,
 ;;;               if any
 ;;; Inputs:
-;;;       DI - FAT entry buffer 
+;;;       SI - FAT entry buffer 
 ;;;       BX - current FAT entry's value
 ;;; Outputs:
 ;;;       AX - next FAT entry's value
@@ -57,8 +58,8 @@ extract_next_fat12_entry:
         mov ax, bx              ; BX == current cluster
         shr ax, 1               ; current_cluster / 2
         add ax, bx              ; (current_cluster + current_cluster / 2) == FAT entry offset
-        add di, ax              ; index fat buffer by offset
-        mov ax, [di]            ; get the indexed entry
+        add si, ax              ; index fat buffer by offset
+        mov ax, [si]            ; get the indexed entry
         test bx, 1              ; check if the existing entry is odd
         jz .even
     .odd:
