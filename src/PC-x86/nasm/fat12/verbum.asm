@@ -90,11 +90,7 @@ start:
         mov [bp + stg2_parameters.fat_0], cx
         mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
         mov [bp + stg2_parameters.PnP_Entry_Off], di
-       ;; pointers to aux routines inside the boot loader
-;        mov [bp + stg2_parameters.reset_drive], word reset_disk
-;        mov [bp + stg2_parameters.read_LBA_sector], word read_LBA_sector
-;        mov [bp + stg2_parameters.print_str], word print_str
-;        mov [bp + stg2_parameters.halt_loop], word halted
+        mov [bp + stg2_parameters.boot_sig], word bootsig
 
 ;;; reset the disk drive
         call near reset_disk
