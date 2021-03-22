@@ -114,9 +114,9 @@ halted:
 ;;[section .rodata]      
 snd_stage_file  db 'STAGETWOSYS', NULL
 
-dir_entry_mockup    db 'STAGE2  SYS'
-           times 15 db 0
-                    db 0x03, 00, 0x51, 00
+;dir_entry_mockup    db 'STAGE2  SYS'
+;           times 15 db 0
+;                    db 0x03, 00, 0x51, 00
 
 failed              db 'x', NULL
 nl                  db CR,LF, NULL

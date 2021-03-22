@@ -10,11 +10,12 @@
 %include "dir_entry.inc"
 %include "stage2_parameters.inc"
 %include "simple_disk_handling_code.inc"
-
+%include "simple_text_print_code.inc"
+%include "print_hex_code.inc"
 
 hi_nibble_mask        equ 0x0FFF
 lo_nibble_shift       equ 4
-end_of_chain_mask     equ 0x0FF0
+end_of_chain_mask     equ 0x0FF8
     
 
 ;;; fat_to_file - read a chain of FAT entries to
@@ -31,14 +32,18 @@ fat_to_file:
         mov ax, bx
         sub ax, 2
         add ax, first_data_sector
+;        call print_hex_word
+        push bx
         mov bx, si
         call read_LBA_sector
+        pop bx
         call extract_next_fat12_entry
         mov bx, ax
-        test ax, end_of_chain_mask
-        jz .end_of_file
-;        call print_hex_word
-        jmp .read_loop
+        add si, Bytes_Per_Sector
+;        test ax, end_of_chain_mask
+;        jnz .read_loop
+        cmp ax, end_of_chain_mask
+        jb .read_loop
 
     .end_of_file:
 ;        call print_hex_word
@@ -57,15 +62,19 @@ extract_next_fat12_entry:
         mov ax, bx              ; BX == current cluster
         shr ax, 1               ; current_cluster / 2
         add ax, bx              ; (current_cluster + current_cluster / 2) == FAT entry offset
+        push di
         add di, ax              ; index fat buffer by offset
         mov ax, [di]            ; get the indexed entry
+        pop di
         test bx, 1              ; check if the existing entry is odd
         jz .even
     .odd:
         shr ax, lo_nibble_shift ; extract the high bits
+;        call print_hex_word
         ret
     .even:
         and ax, hi_nibble_mask  ; extract the low bits
+;        call print_hex_word
         ret
 
 %endif

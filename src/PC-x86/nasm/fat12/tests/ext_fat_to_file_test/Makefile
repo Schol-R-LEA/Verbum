@@ -14,6 +14,7 @@ install: boot stage2
 	$(COPY) if=$(BOOT).bin of=$(DISKTARGET) count=1 conv=notrunc
 	mkdir temp
 	sudo mount -t vfat $(DISKTARGET) temp
+	sudo cp dummy.txt temp/DUMMY.TXT
 	sudo cp $(STAGE_TWO).bin temp/STAGETWO.BIN
 	sudo umount temp
 	rmdir temp

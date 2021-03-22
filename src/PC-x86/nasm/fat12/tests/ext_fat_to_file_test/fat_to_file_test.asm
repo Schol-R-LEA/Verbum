@@ -76,9 +76,14 @@ start:
         call near seek_directory_entry
         cmp bx, word 0
         je .no_file
+        mov ax, bx
+        call print_hex_word
 
+        mov di, bx       
         call read_directory_details
-
+        mov ax, bx
+        call print_hex_word
+        
         mov di, fat_buffer
         mov si, stage2_buffer
         call fat_to_file

@@ -41,23 +41,10 @@ seek_directory_entry:
 ;;; Inputs:
 ;;;       DI - directory entry
 ;;; Outputs:
-;;;       AX - low bytes of the file size
-;;;       DX - high bytes of the file size
 ;;;       BX - First FAT entry of the file
 read_directory_details:
-        push cx
         ;; position of first sector
         mov bx, [di + directory_entry.cluster_lobits]
-;        mov ax, [di + directory_entry.file_size]
-;        mov dx, [di + directory_entry.file_size + 1]
-;        mov cx, Bytes_Per_Sector
-;        div cx
-;        mov ax, [di + directory_entry.file_size]
-;        cmp dx, word 0
-;        jz .no_remainder
-;        inc ax                  ; if there is a remainder, round up
-;    .no_remainder:
-        pop cx
        ret
 
 %endif
