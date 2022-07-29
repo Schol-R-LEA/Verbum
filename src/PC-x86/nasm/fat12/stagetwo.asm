@@ -28,13 +28,20 @@
 %include "fat-12.inc"
 %include "stage2_parameters.inc"
 
-stage2_base     equ 0x0000            ; the segment:offset to load 
-stage2_offset   equ stage2_buffer     ; the second stage into
+stage2_base       equ 0x0000            ; the segment:offset to load 
+stage2_offset     equ stage2_buffer     ; the second stage into
 
-mem_map_buffer  equ 0xF000            ; set aside a full segment for holding the memory map
-mmap_size       equ 20
-ext_mmap_size   equ mmap_size + 4
-SMAP_Text       equ 0x0534D4150
+struc High_Mem_Map
+    .base   resq 1
+    .length resq 1
+    .type   resd 1
+    .ext    resd 1
+endstruc
+
+mmap_size         equ 20
+ext_mmap_size     equ mmap_size + 4
+
+SMAP_Text         equ 0x0534D4150
 
 
 bits 16
@@ -98,14 +105,18 @@ A20_enable:
     .mem:
         write low_mem
         int LMBIOS
-        call print_hex_word
+        mov si, print_buffer
+        call print_decimal_word
         write kbytes
-        
-        push ebp
+        push di
+        push bp
+        mov di, mem_map_buffer
         call get_hi_memory_map
+        mov di, mem_map_buffer
         call print_hi_mem_map
-         
-
+        
+        pop bp
+        pop di
 ;;; halt the CPU
 halted:
         write newline
@@ -161,15 +172,17 @@ get_hi_memory_map:
 ;       The consequence of overwriting the BIOS code will lead to problems like getting stuck in `int 0x15`
 ; inputs: es:di -> destination buffer for 24 byte entries
 ; outputs: bp = entry count, trashes all registers except esi
-        zero(ebp)               ; use BP to hold count of the entries
+; based on code from the OSDev.org wiki (https://wiki.osdev.org/Detecting_Memory_(x86)#Getting_an_E820_Memory_Map)
+        zero(bp)                ; use BP to hold count of the entries
+        zero(ebx)               ; ebx must be 0 to start
         mov di, mem_map_buffer  ; set the offset for the BIOS to write the list to
         mov eax, stage2_base    
         mov es, eax             ; set the base for the BIOS to write to
-        zero(ebx)
+
     .mem_map_init:
         mov edx, SMAP_Text	; Place "SMAP" into edx for later comparison on eax
         mov [es:di + mmap_size], dword 1 ; force a valid ACPI 3.X entry
-        mov ecx, 24
+        mov ecx, ext_mmap_size
         mov eax, mem_map
         int HMBIOS
 	jc short .failed        ; carry set on first call means "unsupported function"
@@ -181,7 +194,6 @@ get_hi_memory_map:
 	jmp short .jmpin   
 
     .loop:
-        mov edx, SMAP_Text	; Place "SMAP" into edx for later comparison on eax
         mov [es:di + mmap_size], dword 1 ; force a valid ACPI 3.X entry
         mov ecx, ext_mmap_size
         mov eax, mem_map
@@ -195,8 +207,8 @@ get_hi_memory_map:
 	test byte [es:di + mmap_size], 1	; if so: is the "ignore this data" bit clear?
 	je short .skip_entry
     .no_text:
-	mov ecx, [es:di + 8]	; get lower uint32_t of memory region length
-	or ecx, [es:di + 12]	; "or" it with upper uint32_t to test for zero
+	mov ecx, [es:di + High_Mem_Map.length]	; get lower uint32_t of memory region length
+	or ecx, [es:di + High_Mem_Map.length + 4] ; "or" it with upper uint32_t to test for zero
 	jz .skip_entry	        ; if length uint64_t is 0, skip entry
 	inc bp			; got a good entry: ++count, move to next storage spot
 	add di, ext_mmap_size
@@ -215,23 +227,83 @@ get_hi_memory_map:
 
 print_hi_mem_map:  
         jc .failed
-        cmp ebp, 0
+        cmp bp, 0
         jz .failed
         write mmap_prologue
+        mov si, print_buffer
+        push ax
+        mov ax, bp
+        call print_decimal_word
+        write mmap_entries_label
+        pop ax
         write mmap_headers
         write mmap_separator
-        mov ecx, ebp            ; set the # of entries as the loop index
+        mov cx, bp            ; set the # of entries as the loop index
 
-    .loop:     
+        push si
+        push di
         
+    .loop:
+        ; write each of the structure fields with a spacer separating them
+        call print_hex_qword
+        write mmap_space
+        add di, High_Mem_Map.length
+        call print_hex_qword
+        write mmap_space
+        add di, High_Mem_Map.type
+        call print_hex_dword
+        write mmap_space
+        add di, High_Mem_Map.ext
+        call print_hex_dword
+        write newline
+        add di, ext_mmap_size - High_Mem_Map.ext ; advance to the next entry
+        loop .loop
         
     .finish:
+        pop di
+        pop si
         ret
         
     .failed:
         write mmap_failed
         ret
 
+
+print_hex_dword:
+;;; print_hex_dword - convert a doubleword to hex and print it to console
+;;; Input:
+;;;      [DI] = word to print
+;;;      ES   = segment where buffer resides
+;;;      SI   = buffer to print
+;;; Output:
+;;;      screen
+;;; Clobbers:
+;;;      AX, SI
+        mov ax, [di]
+        call print_hex_word
+        mov ax, [di+4]
+        call print_hex_word
+        ret
+
+print_hex_qword:
+;;; print_hex_qword - convert a quad word to hex and print it to console
+;;; Input:
+;;;      [DI] = word to print
+;;;      ES   = segment where buffer resides
+;;;      SI   = buffer to print
+;;; Output:
+;;;      screen
+;;; Clobbers:
+;;;      AX, SI
+        mov ax, [di]
+        call print_hex_word
+        mov ax, [di+4]
+        call print_hex_word
+        mov ax, [di+8]
+        call print_hex_word
+        mov ax, [di+12]
+        call print_hex_word
+        ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
@@ -247,23 +319,31 @@ print_hi_mem_map:
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 ;;         [section .data]
-
+print_buffer               resb 17
 newline                      db CR, LF, NULL
 exit                         db 'System Halted.', CR, LF, NULL
 
-success                      db 'Control successfully transferred to second stage.', CR, LF, NULL
+success                      db 'Control successfully transferred to second stage at ', NULL
 A20_gate_status              db 'A20 Line Status: ', NULL
 on                           db 'on.', CR, LF, NULL
 off                          db 'off.', CR, LF, NULL
-A20_gate_trying_bios         db 'Attempting to activate A20 line with BIOS...', NULL
+A20_gate_trying_bios         db 'Attempting to activate A20 line with BIOS... ', NULL
 no_A20_Gate                  db 'A20 gate not found.', CR, LF, NULL
 mmap_failed                  db 'Could not retrieve memory map.', NULL
 low_mem                      db 'Low memory total: ', NULL
 kbytes                       db ' KiB', CR, LF, NULL
-mmap_prologue                db 'High memory map:', CR, LF, NULL
-mmap_headers                 db 'Base Address       | Length             | Type', CR, LF, NULL
-mmap_separator               db '-------------------------------------------------------', CR,LF, NULL
+mmap_prologue                db 'High memory map (', NULL
+mmap_entries_label           db ' entries):', CR,LF,NULL
+mmap_headers                 db 'Base Address       | Length             | Type       | Ext.  ', CR, LF, NULL
+mmap_separator               db '-----------------------------------------------------------------', CR,LF, NULL
+mmap_space                   db '     ', NULL
+
 mmap_entries                 resd 1
+
+
+
+mem_map_buffer               resb 255 * ext_mmap_size
+
 
 %include "init_gdt.inc"
 ;%include "init_idt.inc"        
