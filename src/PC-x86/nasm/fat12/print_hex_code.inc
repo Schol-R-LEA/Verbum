@@ -55,7 +55,6 @@ print_hex_byte:
         ret
         
 ;;; print_hex_word - convert a word to hex and print it to console
-;;; convert_hex - convert one byte to hexidecimal value                    ;
 ;;; Input:
 ;;;      AX = word to print
 ;;;      ES = segment where buffer resides

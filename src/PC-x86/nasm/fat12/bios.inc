@@ -12,7 +12,9 @@ DBIOS           equ 0x13        ;; BIOS interrupt vector for disk services
 disk_reset      equ 0x00        ;; disk reset service
 disk_read       equ 0x02        ;; disk read service
 
-MBIOS           equ 0x12
+LMBIOS          equ 0x12
+HMBIOS          equ 0x15
+mem_map         equ 0xE820
 
 A20BIOS         equ 0x15
 A20_supported   equ 0x2403

@@ -30,13 +30,23 @@
 
 stage2_base     equ 0x0000            ; the segment:offset to load 
 stage2_offset   equ stage2_buffer     ; the second stage into
-                        
+
+mem_map_buffer  equ 0xF000            ; set aside a full segment for holding the memory map
+mmap_size       equ 20
+ext_mmap_size   equ mmap_size + 4
+SMAP_Text       equ 0x0534D4150
+
+
 bits 16
 org stage2_offset
 section .text
 
 entry:
         write success
+        mov ax, stage2_base
+        mov gs, ax
+        mov ax, stage2_offset
+        call print_hex_seg_offset
         write newline
 
 A20_enable:
@@ -81,10 +91,20 @@ A20_enable:
         write no_A20_Gate
         jmp halted
 
-
     .A20_on:
-        write newline      
+        write newline
         write on
+
+    .mem:
+        write low_mem
+        int LMBIOS
+        call print_hex_word
+        write kbytes
+        
+        push ebp
+        call get_hi_memory_map
+        call print_hi_mem_map
+         
 
 ;;; halt the CPU
 halted:
@@ -93,7 +113,10 @@ halted:
     .halted_loop:
         hlt
         jmp short .halted_loop
-        
+
+
+
+   
 
 
 ;;; test_A20 - check to see if the A20 line is enabled
@@ -129,10 +152,92 @@ test_A20:
         pop ax
         ret
 
+
+;; Attempt to get the full physical memory map for the system
+;; this should be done before the move to protected mode
+get_hi_memory_map:
+; use the INT 0x15, eax= 0xE820 BIOS function to get a memory map
+; note: initially di is 0, be sure to set it to a value so that the BIOS code will not be overwritten. 
+;       The consequence of overwriting the BIOS code will lead to problems like getting stuck in `int 0x15`
+; inputs: es:di -> destination buffer for 24 byte entries
+; outputs: bp = entry count, trashes all registers except esi
+        zero(ebp)               ; use BP to hold count of the entries
+        mov di, mem_map_buffer  ; set the offset for the BIOS to write the list to
+        mov eax, stage2_base    
+        mov es, eax             ; set the base for the BIOS to write to
+        zero(ebx)
+    .mem_map_init:
+        mov edx, SMAP_Text	; Place "SMAP" into edx for later comparison on eax
+        mov [es:di + mmap_size], dword 1 ; force a valid ACPI 3.X entry
+        mov ecx, 24
+        mov eax, mem_map
+        int HMBIOS
+	jc short .failed        ; carry set on first call means "unsupported function"
+	mov edx, SMAP_Text	; Some BIOSes apparently trash this register?
+	cmp eax, edx		; on success, eax must have been reset to "SMAP"
+	jne short .failed
+	test ebx, ebx		; ebx = 0 implies list is only 1 entry long (worthless)
+	je short .failed
+	jmp short .jmpin   
+
+    .loop:
+        mov edx, SMAP_Text	; Place "SMAP" into edx for later comparison on eax
+        mov [es:di + mmap_size], dword 1 ; force a valid ACPI 3.X entry
+        mov ecx, ext_mmap_size
+        mov eax, mem_map
+        int HMBIOS
+	jc short .finish        ; carry set means "end of list already reached"
+	mov edx, SMAP_Text	; repair potentially trashed register
+    .jmpin:
+	jcxz .skip_entry	; skip any 0 length entries
+	cmp cl, mmap_size	; got a 24 byte ACPI 3.X response?
+	jbe short .no_text
+	test byte [es:di + mmap_size], 1	; if so: is the "ignore this data" bit clear?
+	je short .skip_entry
+    .no_text:
+	mov ecx, [es:di + 8]	; get lower uint32_t of memory region length
+	or ecx, [es:di + 12]	; "or" it with upper uint32_t to test for zero
+	jz .skip_entry	        ; if length uint64_t is 0, skip entry
+	inc bp			; got a good entry: ++count, move to next storage spot
+	add di, ext_mmap_size
+    .skip_entry:
+	test ebx, ebx		; if ebx resets to 0, list is complete
+	jne short .loop
+    .finish:
+	mov [mmap_entries], bp	; store the entry count
+	clc			; there is "jc" on end of list to this point, so the carry must be cleared
+	ret
+
+    .failed:
+        stc
+        ret
+
+
+print_hi_mem_map:  
+        jc .failed
+        cmp ebp, 0
+        jz .failed
+        write mmap_prologue
+        write mmap_headers
+        write mmap_separator
+        mov ecx, ebp            ; set the # of entries as the loop index
+
+    .loop:     
+        
+        
+    .finish:
+        ret
+        
+    .failed:
+        write mmap_failed
+        ret
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
 %include "print_hex_code.inc"
+%include "print_decimal_code.inc"
 %include "simple_disk_handling_code.inc"
 %include "read_fat_code.inc"
 %include "read_root_dir_code.inc"
@@ -152,4 +257,13 @@ on                           db 'on.', CR, LF, NULL
 off                          db 'off.', CR, LF, NULL
 A20_gate_trying_bios         db 'Attempting to activate A20 line with BIOS...', NULL
 no_A20_Gate                  db 'A20 gate not found.', CR, LF, NULL
-        
+mmap_failed                  db 'Could not retrieve memory map.', NULL
+low_mem                      db 'Low memory total: ', NULL
+kbytes                       db ' KiB', CR, LF, NULL
+mmap_prologue                db 'High memory map:', CR, LF, NULL
+mmap_headers                 db 'Base Address       | Length             | Type', CR, LF, NULL
+mmap_separator               db '-------------------------------------------------------', CR,LF, NULL
+mmap_entries                 resd 1
+
+%include "init_gdt.inc"
+;%include "init_idt.inc"        

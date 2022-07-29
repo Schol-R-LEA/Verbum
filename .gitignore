@@ -11,3 +11,6 @@
 *.bin
 *.img
 *.qcow2
+*.zip
+*.gz
+*.tar

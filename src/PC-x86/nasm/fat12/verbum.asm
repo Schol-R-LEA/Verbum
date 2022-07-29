@@ -124,7 +124,7 @@ start:
         jmp short halted        ; in case of failure
  
     .no_file:
-;        write failure_state
+        write failure_state
 ;        write read_failed
         jmp short halted
 
@@ -159,7 +159,7 @@ snd_stage_file  db 'STAGETWOSYS', NULL
 ;comma_done      db ', '
 ;done            db 'done.',
 ;nl              db CR, LF, NULL
-;failure_state   db 'Cannot ', NULL
+failure_state   db 'Cannot ', NULL
 ;reset_failed    db 'reset,', NULL
 ;read_failed     db 'read,', NULL
 ;exit            db ' .', NULL
