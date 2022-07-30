@@ -27,6 +27,7 @@
 %include "macros.inc"
 %include "fat-12.inc"
 %include "stage2_parameters.inc"
+%include "gdt.inc"
 
 stage2_base       equ 0x0000            ; the segment:offset to load 
 stage2_offset     equ stage2_buffer     ; the second stage into
@@ -102,6 +103,9 @@ A20_enable:
         write newline
         write on
 
+
+;; Attempt to get the full physical memory map for the system
+;; this should be done before the move to protected mode
     .mem:
         write low_mem
         int LMBIOS
@@ -117,6 +121,8 @@ A20_enable:
         
         pop bp
         pop di
+
+
 ;;; halt the CPU
 halted:
         write newline
@@ -160,8 +166,6 @@ test_A20:
         ret
 
 
-;; Attempt to get the full physical memory map for the system
-;; this should be done before the move to protected mode
 get_hi_memory_map:
 ; use the INT 0x15, eax= 0xE820 BIOS function to get a memory map
 ; note: initially di is 0, be sure to set it to a value so that the BIOS code will not be overwritten. 
@@ -221,18 +225,26 @@ get_hi_memory_map:
         ret
 
 
+;;; print_hi_mem_map - prints the memory table
+;;; Inputs:
+;;;       BP   = the number of entries found
+;;;       [DI] = the memory map table
+;;; Outputs:
+;;;       screen
+;;; Clobbers:
+;;;       AX, CX, SI
 print_hi_mem_map:  
-        jc .failed
+        jc .failed              ; if the interrupt isn't supported, fail
         cmp bp, 0
-        jz .failed
+        jz .failed              ; if there are no valid entries, fail
         write mmap_prologue
-        mov si, print_buffer
+        mov si, print_buffer    ; print the description of the section...
         push ax
         mov ax, bp
-        call print_decimal_word
+        call print_decimal_word ; including the number of entries found...
         write mmap_entries_label
         pop ax
-        write mmap_headers
+        write mmap_headers      ;and the headers for the columns.
         write mmap_separator
         mov cx, bp            ; set the # of entries as the loop index
 
@@ -241,21 +253,35 @@ print_hi_mem_map:
         
     .loop:
         ; write each of the structure fields with a spacer separating them
-        call print_hex_qword
-        write mmap_space
         push di
-        add di, High_Mem_Map.length
+        add di, High_Mem_Map.base ; print the base value
         call print_hex_qword
         write mmap_space
         pop di
         push di
-        add di, High_Mem_Map.type
-        call print_hex_dword
+        add di, High_Mem_Map.length ; print the length value
+        call print_hex_qword
         write mmap_space
         pop di
         push di
-        add di, High_Mem_Map.ext
-        call print_hex_dword
+        add di, High_Mem_Map.type ; use the type value as an index into the array of strings
+        mov si, mmap_types        ; get the array head
+        mov ax, [di]              ; get the offset
+        mov bl, mmap_types_size   ; multiply the offset by the size of the array elements
+        imul bl
+        add si, ax              ; print the appropriate array element
+        call print_str
+        write lparen            ; print the actual value of the type in parentheses
+        mov si, print_buffer    
+        mov ax, [di]
+        call print_decimal_word
+        write rparen
+        write mmap_space
+        pop di
+        push di
+        add di, High_Mem_Map.ext ; print the extended ACPI 3.x value 
+        mov ax, [di]
+        call print_decimal_word
         write newline
         pop di
         add di, ext_mmap_size ; advance to the next entry
@@ -288,10 +314,11 @@ print_hi_mem_map:
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 ;;         [section .data]
-print_buffer               resb 17
+lparen                       db '(', NULL
+rparen                       db ')', NULL
+print_buffer                 resb 32
 newline                      db CR, LF, NULL
 exit                         db 'System Halted.', CR, LF, NULL
-
 success                      db 'Control successfully transferred to second stage at ', NULL
 A20_gate_status              db 'A20 Line Status: ', NULL
 on                           db 'on.', CR, LF, NULL
@@ -303,12 +330,19 @@ low_mem                      db 'Low memory total: ', NULL
 kbytes                       db ' KiB', CR, LF, NULL
 mmap_prologue                db 'High memory map (', NULL
 mmap_entries_label           db ' entries):', CR,LF,NULL
-mmap_headers                 db 'Base Address       | Length             | Type       | Ext.  ', CR, LF, NULL
-mmap_separator               db '-----------------------------------------------------------------', CR,LF, NULL
+mmap_headers                 db 'Base Address       | Length             | Type                  | Ext.', CR, LF, NULL
+mmap_separator               db '----------------------------------------------------------------------------', CR,LF, NULL
 mmap_space                   db '     ', NULL
 
 mmap_entries                 resd 1
 
+mmap_types                   db '                ', NULL
+                             db 'Free Memory     ', NULL
+                             db 'Reserved Memory ', NULL
+                             db 'ACPI Reclaimable', NULL
+                             db 'ACPI NVS        ', NULL
+                             db 'Bad Memory      ', NULL
+mmap_types_size              equ 17
 
 
 mem_map_buffer               resb 255 * ext_mmap_size
