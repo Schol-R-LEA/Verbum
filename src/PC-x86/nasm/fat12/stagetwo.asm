@@ -126,10 +126,6 @@ halted:
         jmp short .halted_loop
 
 
-
-   
-
-
 ;;; test_A20 - check to see if the A20 line is enabled
 ;;; Inputs:
 ;;;       SI - effective address to test
@@ -247,16 +243,22 @@ print_hi_mem_map:
         ; write each of the structure fields with a spacer separating them
         call print_hex_qword
         write mmap_space
+        push di
         add di, High_Mem_Map.length
         call print_hex_qword
         write mmap_space
+        pop di
+        push di
         add di, High_Mem_Map.type
         call print_hex_dword
         write mmap_space
+        pop di
+        push di
         add di, High_Mem_Map.ext
         call print_hex_dword
         write newline
-        add di, ext_mmap_size - High_Mem_Map.ext ; advance to the next entry
+        pop di
+        add di, ext_mmap_size ; advance to the next entry
         loop .loop
         
     .finish:
@@ -269,46 +271,13 @@ print_hi_mem_map:
         ret
 
 
-print_hex_dword:
-;;; print_hex_dword - convert a doubleword to hex and print it to console
-;;; Input:
-;;;      [DI] = word to print
-;;;      ES   = segment where buffer resides
-;;;      SI   = buffer to print
-;;; Output:
-;;;      screen
-;;; Clobbers:
-;;;      AX, SI
-        mov ax, [di]
-        call print_hex_word
-        mov ax, [di+4]
-        call print_hex_word
-        ret
 
-print_hex_qword:
-;;; print_hex_qword - convert a quad word to hex and print it to console
-;;; Input:
-;;;      [DI] = word to print
-;;;      ES   = segment where buffer resides
-;;;      SI   = buffer to print
-;;; Output:
-;;;      screen
-;;; Clobbers:
-;;;      AX, SI
-        mov ax, [di]
-        call print_hex_word
-        mov ax, [di+4]
-        call print_hex_word
-        mov ax, [di+8]
-        call print_hex_word
-        mov ax, [di+12]
-        call print_hex_word
-        ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
 %include "print_hex_code.inc"
+%include "print_hex_long_code.inc"
 %include "print_decimal_code.inc"
 %include "simple_disk_handling_code.inc"
 %include "read_fat_code.inc"
