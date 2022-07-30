@@ -71,11 +71,6 @@ print_hex_word:
         ret
 
 
-
-
-
-
-
 ;;; print_hex_seg_offset - print a segment:offset pair
 ;;; Input:
 ;;;      GS = segment

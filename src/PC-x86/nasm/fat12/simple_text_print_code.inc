@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; routine for printing integer values in hex
+;;; routine for printing strings
 
 %ifndef SIMPLE_TEXT_PRINT_CODE__INC
 %define SIMPLE_TEXT_PRINT_CODE__INC
