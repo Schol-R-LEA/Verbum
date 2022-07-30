@@ -281,6 +281,7 @@ print_hi_mem_map:
         push di
         add di, High_Mem_Map.ext ; print the extended ACPI 3.x value 
         mov ax, [di]
+        mov si, print_buffer
         call print_decimal_word
         write newline
         pop di
