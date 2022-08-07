@@ -138,7 +138,7 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
-;%include "print_hex_code.inc"
+%include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
 %include "read_fat_code.inc"
 %include "read_root_dir_code.inc"

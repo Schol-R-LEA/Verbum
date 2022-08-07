@@ -28,6 +28,8 @@
 %include "fat-12.inc"
 %include "stage2_parameters.inc"
 %include "gdt.inc"
+%include "tss.inc"
+
 
 stage2_base       equ 0x0000            ; the segment:offset to load 
 stage2_offset     equ stage2_buffer     ; the second stage into
@@ -106,7 +108,7 @@ A20_enable:
 
 ;; Attempt to get the full physical memory map for the system
 ;; this should be done before the move to protected mode
-    .mem:
+get_mem_maps:
         write low_mem
         int LMBIOS
         mov si, print_buffer
@@ -118,9 +120,19 @@ A20_enable:
         call get_hi_memory_map
         mov di, mem_map_buffer
         call print_hi_mem_map
-        
         pop bp
         pop di
+
+
+Load_GDT:
+        call setGdt_rm
+
+
+
+; switch to 32-bit protected mode
+promote_pm:
+        
+
 
 
 ;;; halt the CPU
@@ -130,6 +142,7 @@ halted:
     .halted_loop:
         hlt
         jmp short .halted_loop
+
 
 
 ;;; test_A20 - check to see if the A20 line is enabled
@@ -346,8 +359,10 @@ mmap_types                   db '                ', NULL
 mmap_types_size              equ 17
 
 
-mem_map_buffer               resb 255 * ext_mmap_size
+mem_map_buffer               resb 16 * ext_mmap_size
 
 
 %include "init_gdt.inc"
-;%include "init_idt.inc"        
+%include "init_tss.inc"
+;%include "init_idt.inc"
+
