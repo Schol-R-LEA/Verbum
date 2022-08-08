@@ -163,7 +163,7 @@ PModeMain:
         mov edi, 0x000b8000
         mov [edi], byte 'K'
         inc edi
-        mov [edi], byte '1'
+        mov [edi], byte 1
         inc edi
         mov [edi], byte 'e'
         inc edi
