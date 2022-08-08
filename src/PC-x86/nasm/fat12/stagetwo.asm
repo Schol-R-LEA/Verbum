@@ -123,28 +123,111 @@ get_mem_maps:
         pop bp
         pop di
 
+        cli
 
 Load_GDT:
         call setGdt_rm
 
 
-
 ; switch to 32-bit protected mode
 promote_pm:
-        
+        mov eax, cr0 
+        or al, 1       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
+        mov cr0, eax
 
+        ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
+        ; to load CS with proper PM32 descriptor)
+        jmp system_code_selector:PModeMain
+
+
+%line 0 pmode.asm
+bits 32
+PModeMain:
+        ; set the segment selectors
+        mov ax, system_data_selector
+        mov ds, ax
+        mov ss, ax
+        mov es, ax
+        mov fs, ax
+        mov gs, ax
+        mov esp, 0x90000
+
+        ; clear the video screen
+        mov ecx, (80 * 25 * 2)
+        mov al, 0
+        mov edi, 0x000b8000
+        cld
+    rep stosb
+
+
+        mov edi, 0x000b8000
+        mov [edi], byte 'K'
+        inc edi
+        mov [edi], byte '1'
+        inc edi
+        mov [edi], byte 'e'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'r'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'n'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'e'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'l'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte ' '
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 's'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 't'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'a'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'r'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 't'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'e'
+        inc edi
+        mov [edi], byte 1
+        inc edi
+        mov [edi], byte 'd'
+        inc edi
+        mov [edi], byte 1
 
 
 ;;; halt the CPU
 halted:
-        write newline
-        write exit
     .halted_loop:
         hlt
         jmp short .halted_loop
 
 
+%line 0 a20.asm
 
+bits 16
 ;;; test_A20 - check to see if the A20 line is enabled
 ;;; Inputs:
 ;;;       SI - effective address to test
@@ -179,6 +262,8 @@ test_A20:
         ret
 
 
+%line 0 hi_mem.asm
+
 get_hi_memory_map:
 ; use the INT 0x15, eax= 0xE820 BIOS function to get a memory map
 ; note: initially di is 0, be sure to set it to a value so that the BIOS code will not be overwritten. 
@@ -198,46 +283,47 @@ get_hi_memory_map:
         mov ecx, ext_mmap_size
         mov eax, mem_map
         int HMBIOS
-	jc short .failed        ; carry set on first call means "unsupported function"
-	mov edx, SMAP_Text	; Some BIOSes apparently trash this register?
-	cmp eax, edx		; on success, eax must have been reset to "SMAP"
-	jne short .failed
-	test ebx, ebx		; ebx = 0 implies list is only 1 entry long (worthless)
-	je short .failed
-	jmp short .jmpin   
+        jc short .failed        ; carry set on first call means "unsupported function"
+        mov edx, SMAP_Text	; Some BIOSes apparently trash this register?
+        cmp eax, edx		; on success, eax must have been reset to "SMAP"
+        jne short .failed
+        test ebx, ebx		; ebx = 0 implies list is only 1 entry long (worthless)
+        je short .failed
+        jmp short .jmpin   
 
     .loop:
         mov [es:di + mmap_size], dword 1 ; force a valid ACPI 3.X entry
         mov ecx, ext_mmap_size
         mov eax, mem_map
         int HMBIOS
-	jc short .finish        ; carry set means "end of list already reached"
-	mov edx, SMAP_Text	; repair potentially trashed register
+        jc short .finish        ; carry set means "end of list already reached"
+        mov edx, SMAP_Text	; repair potentially trashed register
     .jmpin:
-	jcxz .skip_entry	; skip any 0 length entries
-	cmp cl, mmap_size	; got a 24 byte ACPI 3.X response?
-	jbe short .no_text
-	test byte [es:di + mmap_size], 1	; if so: is the "ignore this data" bit clear?
-	je short .skip_entry
+        jcxz .skip_entry	; skip any 0 length entries
+        cmp cl, mmap_size	; got a 24 byte ACPI 3.X response?
+        jbe short .no_text
+        test byte [es:di + mmap_size], 1	; if so: is the "ignore this data" bit clear?
+        je short .skip_entry
     .no_text:
-	mov ecx, [es:di + High_Mem_Map.length]	; get lower uint32_t of memory region length
-	or ecx, [es:di + High_Mem_Map.length + 4] ; "or" it with upper uint32_t to test for zero
-	jz .skip_entry	        ; if length uint64_t is 0, skip entry
-	inc bp			; got a good entry: ++count, move to next storage spot
-	add di, ext_mmap_size
+        mov ecx, [es:di + High_Mem_Map.length]	; get lower uint32_t of memory region length
+        or ecx, [es:di + High_Mem_Map.length + 4] ; "or" it with upper uint32_t to test for zero
+        jz .skip_entry	        ; if length uint64_t is 0, skip entry
+        inc bp			; got a good entry: ++count, move to next storage spot
+        add di, ext_mmap_size
     .skip_entry:
-	test ebx, ebx		; if ebx resets to 0, list is complete
-	jne short .loop
+        test ebx, ebx		; if ebx resets to 0, list is complete
+        jne short .loop
+
     .finish:
-	mov [mmap_entries], bp	; store the entry count
-	clc			; there is "jc" on end of list to this point, so the carry must be cleared
-	ret
+        mov [mmap_entries], bp	; store the entry count
+        clc			; there is "jc" on end of list to this point, so the carry must be cleared
+        ret
 
     .failed:
         stc
         ret
 
-
+%line 0 hi_mem_2.asm
 ;;; print_hi_mem_map - prints the memory table
 ;;; Inputs:
 ;;;       BP   = the number of entries found
@@ -246,7 +332,7 @@ get_hi_memory_map:
 ;;;       screen
 ;;; Clobbers:
 ;;;       AX, CX, SI
-print_hi_mem_map:  
+print_hi_mem_map:
         jc .failed              ; if the interrupt isn't supported, fail
         cmp bp, 0
         jz .failed              ; if there are no valid entries, fail
@@ -264,7 +350,7 @@ print_hi_mem_map:
         push si
         push di
         
-    .loop:
+    .print_loop:
         ; write each of the structure fields with a spacer separating them
         push di
         add di, High_Mem_Map.base ; print the base value
@@ -299,7 +385,7 @@ print_hi_mem_map:
         write newline
         pop di
         add di, ext_mmap_size ; advance to the next entry
-        loop .loop
+        loop .print_loop
         
     .finish:
         pop di
@@ -312,7 +398,7 @@ print_hi_mem_map:
 
 
 
-
+%line 0 aux.asm
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions      
 %include "simple_text_print_code.inc"
@@ -328,6 +414,7 @@ print_hi_mem_map:
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 ;;         [section .data]
+null                         dd 00000000
 lparen                       db '(', NULL
 rparen                       db ')', NULL
 print_buffer                 resb 32

@@ -3,10 +3,14 @@
 
 %include "gdt.inc"
 
+system_code_selector equ (gdt_system_code - gdt)
+system_data_selector equ (gdt_system_data - gdt)
+
 setGdt_rm:
    XOR   EAX, EAX
    MOV   AX, DS
    SHL   EAX, 4
+
    ADD   EAX, gdt
    MOV   [gdtr + 2], eax
    MOV   EAX, gdt_end
@@ -33,7 +37,7 @@ at GDT_ENTRY.limit_low,       dw 0xffff
 at GDT_ENTRY.base_low,        dw 0
 at GDT_ENTRY.base_mid,        db 0
 at GDT_ENTRY.access,          db Seg_Present | Seg_Kernel | Seg_Desc_Gen | Seg_Code | Seg_Conforming | Seg_Readable
-at GDT_ENTRY.limit_and_flags, db 0x0c
+at GDT_ENTRY.limit_and_flags, db 0xfc
 at GDT_ENTRY.base_high,       db 0
 iend
 
@@ -43,7 +47,7 @@ at GDT_ENTRY.limit_low,       dw 0xffff
 at GDT_ENTRY.base_low,        dw 0
 at GDT_ENTRY.base_mid,        db 0
 at GDT_ENTRY.access,          db Seg_Present | Seg_Kernel | Seg_Desc_Gen | Seg_Data | Seg_Conforming | Seg_Writeable
-at GDT_ENTRY.limit_and_flags, db 0x0c
+at GDT_ENTRY.limit_and_flags, db 0xfc
 at GDT_ENTRY.base_high,       db 0
 iend
 
@@ -59,21 +63,21 @@ iend
 
 gdt_user0_code:
 istruc GDT_ENTRY
-at GDT_ENTRY.limit_low,       dw 0
+at GDT_ENTRY.limit_low,       dw 0xffff
 at GDT_ENTRY.base_low,        dw 0
 at GDT_ENTRY.base_mid,        db 0
 at GDT_ENTRY.access,          db Seg_Present | Seg_User | Seg_Desc_Gen | Seg_Code | Seg_Conforming | Seg_Readable
-at GDT_ENTRY.limit_and_flags, db 0x0c
+at GDT_ENTRY.limit_and_flags, db 0xfc
 at GDT_ENTRY.base_high,       db 0
 iend
 
 gdt_user0_data:
 istruc GDT_ENTRY
-at GDT_ENTRY.limit_low,       dw 0
+at GDT_ENTRY.limit_low,       dw 0xffff
 at GDT_ENTRY.base_low,        dw 0
 at GDT_ENTRY.base_mid,        db 0
 at GDT_ENTRY.access,          db Seg_Present | Seg_User | Seg_Desc_Gen | Seg_Data | Seg_Conforming | Seg_Writeable
-at GDT_ENTRY.limit_and_flags, db 0x0c 
+at GDT_ENTRY.limit_and_flags, db 0xfc
 at GDT_ENTRY.base_high,       db 0
 iend
 
