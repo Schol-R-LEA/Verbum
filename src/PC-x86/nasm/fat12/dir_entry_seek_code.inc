@@ -10,7 +10,7 @@
 %include "dir_entry.inc"
 %include "stage2_parameters.inc"
 
-;;; seek_directory_entry - seek the directory for the stage 2 file
+;;; seek_directory_entry - seek the directory for the given filename
 ;;; Inputs:
 ;;;       SI - address of the filename to match against
 ;;;       DI - directory buffer

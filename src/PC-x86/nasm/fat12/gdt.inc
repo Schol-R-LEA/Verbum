@@ -5,7 +5,7 @@
 ;; and modified for NASM
 
 struc GDT_R
-    .limit               resw 1 
+    .limit               resw 1
     .base                resd 1
 endstruc
 
@@ -21,7 +21,7 @@ endstruc
 
 ;; Each define here is for a specific flag in the descriptor.
 ;; Refer to the intel documentation for a description of what each one does.
-%define Seg_Present               0x80       ; Present  
+%define Seg_Present               0x80       ; Present
 %define Seg_Kernel                0x00       ; DPL 0
 %define Seg_User                  0x60       ; DPL 3
 %define Seg_Desc_System           0x00       ; System Segment

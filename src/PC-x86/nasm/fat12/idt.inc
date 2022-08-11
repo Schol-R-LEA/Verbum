@@ -2,7 +2,7 @@
 %define IDT__INC
 
 struc IDT_R
-    .size                resw 1 
+    .size                resw 1
     .offset              resd 1
 endstruc
 
