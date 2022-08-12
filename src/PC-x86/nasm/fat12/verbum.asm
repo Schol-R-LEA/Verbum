@@ -133,7 +133,7 @@ halted:
     .halted_loop:
         hlt
         jmp short .halted_loop
-   
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions
 %include "simple_text_print_code.inc"

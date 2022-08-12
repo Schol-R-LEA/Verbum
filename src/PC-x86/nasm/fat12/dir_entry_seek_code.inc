@@ -4,6 +4,8 @@
 %ifndef DIRECTORY_ENTRY_SEEK_CODE__INC
 %define DIRECTORY_ENTRY_SEEK_CODE__INC
 
+bits 16
+
 %include "bios.inc"
 %include "macros.inc"
 %include "bpb.inc"

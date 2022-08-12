@@ -4,6 +4,8 @@
 %ifndef SIMPLE_TEXT_PRINT_CODE__INC
 %define SIMPLE_TEXT_PRINT_CODE__INC
 
+bits 16
+
 %include "macros.inc"
 
 ;;; print_str - prints the string point to by SI

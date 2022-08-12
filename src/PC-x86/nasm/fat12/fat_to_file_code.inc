@@ -4,6 +4,8 @@
 %ifndef FAT_TO_FILE_CODE__INC
 %define FAT_TO_FILE_CODE__INC
 
+bits 16
+
 %include "bios.inc"
 %include "macros.inc"
 %include "bpb.inc"

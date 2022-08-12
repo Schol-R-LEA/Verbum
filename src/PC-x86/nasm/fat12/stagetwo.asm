@@ -126,10 +126,6 @@ get_mem_maps:
         cli
 
 
-load_kernel:
-        
-
-
 load_GDT:
         call setGdt_rm
 
@@ -165,62 +161,62 @@ PModeMain:
     rep stosb
 
         ; write 'Kernel started' to text buffer
-        mov edi, 0x000b8000
-        mov [edi], byte 'K'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'e'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'r'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'n'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'e'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'l'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte ' '
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 's'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 't'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'a'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'r'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 't'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'e'
-        inc edi
-        mov [edi], byte 7
-        inc edi
-        mov [edi], byte 'd'
-        inc edi
-        mov [edi], byte 7
+        ; mov edi, 0x000b8000
+        ; mov [edi], byte 'K'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'e'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'r'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'n'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'e'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'l'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte ' '
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 's'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 't'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'a'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'r'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 't'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'e'
+        ; inc edi
+        ; mov [edi], byte 7
+        ; inc edi
+        ; mov [edi], byte 'd'
+        ; inc edi
+        ; mov [edi], byte 7
 
 
 ;;; halt the CPU
@@ -250,7 +246,7 @@ bits 16
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 ;;         [section .data]
-kernel_filename              db "KERNEL  SYS"
+kernel_filename              db "KERNEL  SYS", NULL
 null                         dd 00000000
 lparen                       db '(', NULL
 rparen                       db ')', NULL
@@ -271,6 +267,7 @@ mmap_entries_label           db ' entries):', CR,LF,NULL
 mmap_headers                 db 'Base Address       | Length             | Type                  | Ext.', CR, LF, NULL
 mmap_separator               db '----------------------------------------------------------------------------', CR,LF, NULL
 mmap_space                   db '     ', NULL
+kernel_start                 db 'Kernel Started', NULL
 
 mmap_entries                 resd 1
 

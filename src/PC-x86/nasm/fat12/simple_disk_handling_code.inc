@@ -10,6 +10,8 @@
 %include "dir_entry.inc"
 %include "stage2_parameters.inc"
 
+bits 16
+
 tries            equ 0x03        ; number of times to attempt to access the FDD
 
 ;;; reset_disk - reset the floppy drive

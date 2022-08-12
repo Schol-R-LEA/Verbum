@@ -4,6 +4,8 @@
 %ifndef PRINT_HEX_CODE__INC
 %define PRINT_HEX_CODE__INC
 
+bits 16
+
 %include "consts.inc"
 %include "macros.inc"
 %include "simple_text_print_code.inc"

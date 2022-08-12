@@ -1,6 +1,8 @@
 %ifndef HIGH_MEM_MAP__INC
 %define HIGH_MEM_MAP__INC
 
+bits 16
+
 get_hi_memory_map:
 ; use the INT 0x15, eax= 0xE820 BIOS function to get a memory map
 ; note: initially di is 0, be sure to set it to a value so that the BIOS code will not be overwritten. 

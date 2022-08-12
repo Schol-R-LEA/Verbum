@@ -2,6 +2,8 @@
 %ifndef INIT_TSS__INC
 %define INIT_TSS__INC
 
+bits 16
+
 align 8
 
 default_tss:

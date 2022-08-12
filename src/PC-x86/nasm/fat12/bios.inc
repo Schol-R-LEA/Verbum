@@ -1,5 +1,6 @@
 %ifndef BIOS__INC
 %define BIOS__INC
+bits 16
 
 ;;; Constants related to the BIOS interrupts
 

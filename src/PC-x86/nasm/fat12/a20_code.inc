@@ -1,6 +1,7 @@
 %ifndef A20_CODE__INC
 %define A20_CODE__INC
 
+bits 16
 
 ;;; test_A20 - check to see if the A20 line is enabled
 ;;; Inputs:
