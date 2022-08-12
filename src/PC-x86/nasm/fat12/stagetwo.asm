@@ -151,73 +151,14 @@ PModeMain:
         mov es, ax
         mov fs, ax
         mov gs, ax
-        mov esp, 0x90000
+        mov esp, 0x00090000
 
-        ; clear the video screen
-        mov ecx, (80 * 25 * 2)
-        mov al, 0
-        mov edi, 0x000b8000
-        cld
-    rep stosb
+        call clear_screen
 
         ; write 'Kernel started' to text buffer
-        ; mov edi, 0x000b8000
-        ; mov [edi], byte 'K'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'e'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'r'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'n'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'e'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'l'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte ' '
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 's'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 't'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'a'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'r'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 't'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'e'
-        ; inc edi
-        ; mov [edi], byte 7
-        ; inc edi
-        ; mov [edi], byte 'd'
-        ; inc edi
-        ; mov [edi], byte 7
-
+        mov esi, kernel_start
+        mov al, 7
+        call print_string32
 
 ;;; halt the CPU
 halted:
@@ -242,6 +183,7 @@ bits 16
 %include "fat_to_file_code.inc"
 %include "a20_code.inc"
 %include "high_mem_map_code.inc"
+%include "print32_code.inc"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data

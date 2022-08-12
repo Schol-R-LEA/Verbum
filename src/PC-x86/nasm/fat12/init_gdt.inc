@@ -3,6 +3,8 @@
 
 %include "gdt.inc"
 
+bits 16
+
 system_code_selector equ (gdt_system_code - gdt)
 system_data_selector equ (gdt_system_data - gdt)
 
