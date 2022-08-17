@@ -4,9 +4,12 @@
 %ifndef PRINT32_CODE__INC
 %define PRINT32_CODE__INC
 
+bits 32
+
 Text_Base     equ 0x000b8000
 
-bits 32
+horizontal_size equ 80
+vertical_size   equ 25
 
 ;;; print_char32 - prints the character and attribute
 ;;; Inputs:
@@ -16,14 +19,14 @@ print_char32:
         push esi
         ; test whether the cursor horizontal component is in range
         ; if so, automatically go to the start of the next line
-        cmp dword [Print32_X], 79
+        cmp dword [Print32_X], horizontal_size - 1
         jle .test_scrolling
         mov dword [Print32_X], 0
         inc dword [Print32_Y]
         ; test whether the cursor vertical component is in range
         ; if so, scroll down once and print to the last line
     .test_scrolling:
-        cmp dword [Print32_Y], 24
+        cmp dword [Print32_Y], vertical_size - 1
         jle .display
         push eax
         mov eax, 1
@@ -36,9 +39,9 @@ print_char32:
         add esi, Text_Base
         push eax
         push edx
-        mov edx, 25
+        mov edx, horizontal_size
         mov eax, [Print32_Y]
-        mul edx
+        mul edx                ; y * the row size
         add esi, eax
         pop edx
         pop eax
@@ -55,8 +58,6 @@ print_char32:
 ;;; Inputs:
 ;;;        ESI - string pointer
 ;;;        AL  - atribute
-;;;        BH  - X coordinate
-;;;        BL  - Y coordinate
 print_string32:
         push esi
     .print_char:
@@ -73,19 +74,27 @@ scroll:
         ret
 
 
+gotoxy:
+        mov dword [Print32_X], eax
+        mov dword [Print32_Y], edx
+        cmp dword [Print32_X], horizontal_size - 1
+        jle .test_scrolling
+        mov dword [Print32_X], 0
+        inc dword [Print32_Y]
+        ; test whether the cursor vertical component is in range
+        ; if so, scroll down once and print to the last line
+    .test_scrolling:
+        cmp dword [Print32_Y], vertical_size - 1
+        jle .finish
+        mov eax, 1
+        call scroll
+    .finish:
+        ret
+
+
 clear_screen:
         ; clear the video screen
-        push eax
-        push ecx
-        push edi
-        mov ecx, (80 * 25 * 2)
-        mov al, 0
-        mov edi, Text_Base
-        cld
-    rep stosb
-        pop edi
-        pop ecx
-        pop eax
+        memset32 0, 80 * 25 * 2, Text_Base
         ret
 
 

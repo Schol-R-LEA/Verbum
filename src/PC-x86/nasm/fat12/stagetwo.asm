@@ -34,17 +34,16 @@
 stage2_base       equ 0x0000            ; the segment:offset to load 
 stage2_offset     equ stage2_buffer     ; the second stage into
 
-struc High_Mem_Map
-    .base   resq 1
-    .length resq 1
-    .type   resd 1
-    .ext    resd 1
-endstruc
+kernel_base       equ 0xffff
 
-mmap_size         equ 20
-ext_mmap_size     equ mmap_size + 4
+kdata_offset      equ 0x0010
+mmap_cnt_offset   equ kdata_offset
+mmap_offset       equ 0x0012
 
-SMAP_Text         equ 0x0534D4150
+kcode_offset      equ 0x1000
+
+
+
 
 
 bits 16
@@ -102,63 +101,79 @@ A20_enable:
         jmp halted
 
     .A20_on:
-        write newline
         write on
 
 
 ;; Attempt to get the full physical memory map for the system
 ;; this should be done before the move to protected mode
 get_mem_maps:
+        ; get the low memory map
         write low_mem
         int LMBIOS
         mov si, print_buffer
         call print_decimal_word
         write kbytes
+        ; get the high memory map
+        push es
+        push si
         push di
         push bp
-        mov di, mem_map_buffer
+        mov ax, kernel_base
+        mov es, ax
+        mov di, mmap_offset
+        mov si, mmap_cnt_offset
         call get_hi_memory_map
-        mov di, mem_map_buffer
+        mov di, mmap_offset
+        mov bp, es:[mmap_cnt_offset]
         call print_hi_mem_map
         pop bp
         pop di
+        pop si
+        pop es
 
-        cli
-
-
-load_GDT:
-        call setGdt_rm
+load_kernel_data:
 
 
-; switch to 32-bit protected mode
-promote_pm:
-        mov eax, cr0 
-        or al, 1       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
-        mov cr0, eax
 
-        ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
-        ; to load CS with proper PM32 descriptor)
-        jmp system_code_selector:PModeMain
+load_kernel_code:
 
 
-%line 0 pmode.asm
-bits 32
-PModeMain:
-        ; set the segment selectors
-        mov ax, system_data_selector
-        mov ds, ax
-        mov ss, ax
-        mov es, ax
-        mov fs, ax
-        mov gs, ax
-        mov esp, 0x00090000
 
-        call clear_screen
 
-        ; write 'Kernel started' to text buffer
-        mov esi, kernel_start
-        mov al, 7
-        call print_string32
+; load_GDT:
+;        cli
+;        call setGdt_rm
+
+
+;        ; switch to 32-bit protected mode
+; promote_pm:
+;         mov eax, cr0
+;         or al, 1       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
+;         mov cr0, eax
+
+;         ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
+;         ; to load CS with proper PM32 descriptor)
+;         jmp system_code_selector:PModeMain
+
+
+; %line 0 pmode.asm
+; bits 32
+; PModeMain:
+;         ; set the segment selectors
+;         mov ax, system_data_selector
+;         mov ds, ax
+;         mov ss, ax
+;         mov es, ax
+;         mov fs, ax
+;         mov gs, ax
+;         mov esp, 0x00090000
+
+;         call clear_screen
+
+;         ; write 'Kernel started' to text buffer
+;         mov esi, kernel_start
+;         mov al, 7
+;         call print_string32
 
 ;;; halt the CPU
 halted:
@@ -204,25 +219,10 @@ no_A20_Gate                  db 'A20 gate not found.', CR, LF, NULL
 mmap_failed                  db 'Could not retrieve memory map.', NULL
 low_mem                      db 'Low memory total: ', NULL
 kbytes                       db ' KiB', CR, LF, NULL
-mmap_prologue                db 'High memory map (', NULL
-mmap_entries_label           db ' entries):', CR,LF,NULL
-mmap_headers                 db 'Base Address       | Length             | Type                  | Ext.', CR, LF, NULL
-mmap_separator               db '----------------------------------------------------------------------------', CR,LF, NULL
-mmap_space                   db '     ', NULL
 kernel_start                 db 'Kernel Started', NULL
 
-mmap_entries                 resd 1
-
-mmap_types                   db '                ', NULL
-                             db 'Free Memory     ', NULL
-                             db 'Reserved Memory ', NULL
-                             db 'ACPI Reclaimable', NULL
-                             db 'ACPI NVS        ', NULL
-                             db 'Bad Memory      ', NULL
-mmap_types_size              equ 17
 
 
-mem_map_buffer               resb 16 * ext_mmap_size
 
 
 %include "init_gdt.inc"

@@ -27,7 +27,7 @@ convert_hex:
         cmp al, 10              ; if x is less than 10, set carry flag
         sbb al, 0x69            ; 0..9 –> 96h, Ah..Fh –> A1h...A6h
         das                     ;0..9: subtract 66h, Ah..Fh: Sub. 60h
-        mov [si], al            ;save conversion in SI
+        mov [si], al         ;save conversion in SI
 .lo_nibble:
         inc si
         mov al, bl
@@ -35,7 +35,7 @@ convert_hex:
         cmp al, 10              ; if x is less than 10, set carry flag
         sbb al, 0x69            ; 0..9 –> 96h, Ah..Fh –> A1h...A6h
         das                     ;0..9: subtract 66h, Ah..Fh: Sub. 60h
-        mov [si], al            ;save conversion in SI
+        mov [si], al         ;save conversion in SI
         pop bx
         ret
 
@@ -55,7 +55,7 @@ print_hex_byte:
         mov si, word hex_buffer
         call near print_str
         ret
-        
+
 ;;; print_hex_word - convert a word to hex and print it to console
 ;;; Input:
 ;;;      AX = word to print
@@ -86,7 +86,7 @@ print_hex_seg_offset:
         mov si, colon
         call near print_str
         pop ax
-        call near print_hex_word        
+        call near print_hex_word
         ret
 
 hex_buffer   db 0, 0, NULL      ; two bytes, plus null delim

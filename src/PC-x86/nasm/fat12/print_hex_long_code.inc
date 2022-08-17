@@ -23,9 +23,9 @@ print_hex_dword:
 ;;;      screen
 ;;; Clobbers:
 ;;;      AX, SI
-        mov ax, [di+2]
+        mov ax, es:[di+2]
         call print_hex_word
-        mov ax, [di]
+        mov ax, es:[di]
         call print_hex_word
         ret
 
@@ -39,13 +39,13 @@ print_hex_qword:
 ;;;      screen
 ;;; Clobbers:
 ;;;      AX, SI
-        mov ax, [di+6]
+        mov ax, es:[di+6]
         call print_hex_word
-        mov ax, [di+4]
+        mov ax, es:[di+4]
         call print_hex_word
-        mov ax, [di+2]
+        mov ax, es:[di+2]
         call print_hex_word
-        mov ax, [di]
+        mov ax, es:[di]
         call print_hex_word
         ret
 
