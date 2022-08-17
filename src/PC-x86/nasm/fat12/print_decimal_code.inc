@@ -26,14 +26,14 @@ convert_decimal_word:
         push dx
         mov bx, 10
         mov cx, si
-        mov [si+6], byte 0
+        mov es:[si+6], byte 0
         add si, 6
     .loop:
         zero(dx)
         idiv bx
         add dl, ascii_zero
         dec si
-        mov [si], dl
+        mov es:[si], dl
         cmp ax, 0     ; if the quotient is zero, there are no more digits
         je short .finish
         cmp cx, si
