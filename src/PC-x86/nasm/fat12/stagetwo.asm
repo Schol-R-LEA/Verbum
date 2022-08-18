@@ -29,21 +29,24 @@
 %include "stage2_parameters.inc"
 %include "gdt.inc"
 %include "tss.inc"
-
+%include "hi_mem_map.inc"
 
 stage2_base       equ 0x0000            ; the segment:offset to load 
 stage2_offset     equ stage2_buffer     ; the second stage into
 
 kernel_base       equ 0xffff
 
-kdata_offset      equ 0x0010
-mmap_cnt_offset   equ kdata_offset
-mmap_offset       equ 0x0012
+kdata_offset      equ 0xfffc
+struc KData
+    .mmap_cnt     resd 1
+    .mmap         resd High_Mem_Map_size
+    .drive        resd 1
+    .fat          resd fat_size
+
+
+endstruc
 
 kcode_offset      equ 0x1000
-
-
-
 
 
 bits 16
@@ -87,7 +90,7 @@ A20_enable:
         jz .A20_on                   ; A20 is already activated
  
         mov ax, A20_activate
-        int A20BIOS 
+        int A20BIOS
         jb .a20_no_bios_support     ; couldn't activate the gate
         cmp ah, 0
         jz .A20_on                   ; couldn't activate the gate
@@ -120,11 +123,11 @@ get_mem_maps:
         push bp
         mov ax, kernel_base
         mov es, ax
-        mov di, mmap_offset
-        mov si, mmap_cnt_offset
+        mov di, (kdata_offset - KData.mmap - mem_map_buffer_size)
+        mov si, (kdata_offset - KData.mmap_cnt)
         call get_hi_memory_map
-        mov di, mmap_offset
-        mov bp, es:[mmap_cnt_offset]
+        mov di, (kdata_offset - KData.mmap - mem_map_buffer_size)
+        mov bp, es:[kdata_offset - KData.mmap_cnt]
         call print_hi_mem_map
         pop bp
         pop di
@@ -132,7 +135,9 @@ get_mem_maps:
         pop es
 
 load_kernel_data:
-
+        zero(edx)
+        mov dl, byte [bp - stg2_parameters.drive]
+        mov [kdata_offset - KData.drive], edx
 
 
 load_kernel_code:
@@ -140,40 +145,38 @@ load_kernel_code:
 
 
 
-; load_GDT:
-;        cli
-;        call setGdt_rm
+load_GDT:
+       cli
+       call setGdt_rm
 
 
-;        ; switch to 32-bit protected mode
-; promote_pm:
-;         mov eax, cr0
-;         or al, 1       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
-;         mov cr0, eax
+       ; switch to 32-bit protected mode
+promote_pm:
+        mov eax, cr0
+        or al, 1       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
+        mov cr0, eax
 
-;         ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
-;         ; to load CS with proper PM32 descriptor)
-;         jmp system_code_selector:PModeMain
+        ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
+        ; to load CS with proper PM32 descriptor)
+        jmp system_code_selector:PModeMain
 
 
-; %line 0 pmode.asm
-; bits 32
-; PModeMain:
-;         ; set the segment selectors
-;         mov ax, system_data_selector
-;         mov ds, ax
-;         mov ss, ax
-;         mov es, ax
-;         mov fs, ax
-;         mov gs, ax
-;         mov esp, 0x00090000
+%line 0 pmode.asm
+bits 32
+PModeMain:
+        ; set the segment selectors
+        mov ax, system_data_selector
+        mov ds, ax
+        mov ss, ax
+        mov es, ax
+        mov fs, ax
+        mov gs, ax
+        mov esp, 0x00090000
 
-;         call clear_screen
+        call clear_screen
 
-;         ; write 'Kernel started' to text buffer
-;         mov esi, kernel_start
-;         mov al, 7
-;         call print_string32
+        ; write 'Kernel started' to text buffer
+        write32 kernel_start, 7
 
 ;;; halt the CPU
 halted:

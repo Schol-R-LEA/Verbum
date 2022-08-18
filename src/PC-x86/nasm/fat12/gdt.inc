@@ -38,4 +38,11 @@ endstruc
 %define Seg_Non_Writeable         0x00       ; non-writable data segment
 %define Seg_Writeable             0x02
 
+
+%define Granularity_Byte          0x00
+%define Granularity_Page          0x08
+%define Word_Size_16              0x00
+%define Word_Size_32              0x04
+
+
 %endif

@@ -1,21 +1,8 @@
-%ifndef HIGH_MEM_MAP__INC
-%define HIGH_MEM_MAP__INC
+%ifndef HIGH_MEM_MAP_CODE__INC
+%define HIGH_MEM_MAP_CODE__INC
 
 %include "macros.inc"
-
-struc High_Mem_Map
-    .base   resq 1
-    .length resq 1
-    .type   resd 1
-    .ext    resd 1
-endstruc
-
-mmap_size         equ 20
-ext_mmap_size     equ High_Mem_Map_size
-
-SMAP_Text         equ 0x0534D4150
-mem_map_buffer_size          equ 16 * ext_mmap_size
-
+%include "hi_mem_map.inc"
 
 bits 16
 
@@ -98,17 +85,17 @@ print_hi_mem_map:
         jc near .failed                  ; if the interrupt isn't supported, fail
         cmp bp, 0
         jz near .failed                  ; if there are no valid entries, fail
-        push es
+        push es                          ; save ES on the stack and reset ES == DS
         mov ax, ds
         mov es, ax
         write mmap_prologue
-        mov si, print_buffer        ; print the description of the section...
+        mov si, mmap_local_print_buffer  ; print the description of the section...
         mov ax, bp
-        call print_decimal_word     ; including the number of entries found...
+        call print_decimal_word          ; including the number of entries found...
         write mmap_entries_label
-        write mmap_headers          ; and the headers for the columns.
+        write mmap_headers               ; and the headers for the columns.
         write mmap_separator
-        mov cx, bp                  ; set the # of entries as the loop index
+        mov cx, bp                       ; set the # of entries as the loop index
         pop es
         push si
         push di
@@ -116,58 +103,62 @@ print_hi_mem_map:
     .print_loop:
         ; write each of the structure fields with a spacer separating them
         push di
-        add di, High_Mem_Map.base   ; print the base value
+        ; print the base value
+        add di, High_Mem_Map.base
         call print_hex_qword
-        push es
+        push es                          ; save ES on the stack and reset ES == DS
         mov ax, ds
         mov es, ax
         write mmap_space
         pop es
         pop di
         push di
-        add di, High_Mem_Map.length ; print the length value
+        ; print the length value
+        add di, High_Mem_Map.length 
         call print_hex_qword
-        push es
+        push es                          ; save ES on the stack and reset ES == DS
         mov ax, ds
         mov es, ax
         write mmap_space
         pop es
         pop di
         push di
-        add di, High_Mem_Map.type   ; use the type value as an index into the array of strings
+        ; use the type value as an index into the array of strings
+        add di, High_Mem_Map.type
         mov si, mmap_types          ; get the array head
         mov ax, es:[di]             ; get the offset
+        mov dx, ax                  ; save the offset for later use
         mov bl, mmap_types_size     ; multiply the offset by the size of the array elements
         imul bl
         add si, ax                  ; print the appropriate array element
-        push es
+        push es                     ; save ES on the stack and reset ES == DS
         mov ax, ds
         mov es, ax
         call print_str
-        write lparen                ; print the actual value of the type in parentheses
-        mov si, print_buffer
-        pop es
-        mov ax, es:[di]
-        call print_decimal_word
-        push es
-        mov ax, ds
-        mov es, ax
-        write rparen
+        ; print the actual value of the type in parentheses
+        write lparen                ; print the left parenthesis
+        mov si, mmap_local_print_buffer
+        mov ax, dx
+        call print_decimal_word     ; print the decimal value
+        write rparen                ; print the right parenthesis
         write mmap_space
         pop es
         pop di
         push di
-        add di, High_Mem_Map.ext    ; print the extended ACPI 3.x value 
-        mov ax, es:[di]
-        push es
+        ; print the extended ACPI 3.x value
+        add di, High_Mem_Map.ext
+        mov dx, es:[di]             ; get the extended ACPI 3.x value and save it in DX
+        push es                     ; save ES on the stack and reset ES == DS
         mov ax, ds
         mov es, ax
-        mov si, print_buffer
+        mov ax, dx                  ; retrieve the extended ACPI 3.x value
+        mov si, mmap_local_print_buffer
         call print_decimal_word
         write newline
         pop es
         pop di
-        add di, ext_mmap_size       ; advance to the next entry
+        ; advance to the next entry
+        add di, ext_mmap_size
         dec cx
         cmp cx, 0
         jnz .print_loop
@@ -201,5 +192,7 @@ mmap_types                   db '                ', NULL
                              db 'ACPI NVS        ', NULL
                              db 'Bad Memory      ', NULL
 mmap_types_size              equ 17
+
+mmap_local_print_buffer      resb 32
 
 %endif

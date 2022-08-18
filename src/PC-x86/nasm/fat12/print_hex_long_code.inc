@@ -18,7 +18,7 @@ print_hex_dword:
 ;;; Input:
 ;;;      [DI] = word to print
 ;;;      ES   = segment where buffer resides
-;;;      SI   = buffer to print
+;;;      SI   = buffer to print to
 ;;; Output:
 ;;;      screen
 ;;; Clobbers:
@@ -34,7 +34,7 @@ print_hex_qword:
 ;;; Input:
 ;;;      [DI] = word to print
 ;;;      ES   = segment where buffer resides
-;;;      SI   = buffer to print
+;;;      SI   = buffer to print to
 ;;; Output:
 ;;;      screen
 ;;; Clobbers:

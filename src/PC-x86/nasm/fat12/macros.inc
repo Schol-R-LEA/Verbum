@@ -17,7 +17,7 @@
 %macro write32 2
    mov esi, %1
    mov al, %2
-   call near print_string32
+   call print_string32
 %endmacro
 
 %macro memset_rm 3
