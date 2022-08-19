@@ -31,6 +31,10 @@
 %include "tss.inc"
 %include "hi_mem_map.inc"
 
+
+ELF_Magic         equ 0x7f
+
+
 stage2_base       equ 0x0000            ; the segment:offset to load 
 stage2_offset     equ stage2_buffer     ; the second stage into
 
@@ -42,8 +46,6 @@ struc KData
     .mmap         resd High_Mem_Map_size
     .drive        resd 1
     .fat          resd fat_size
-
-
 endstruc
 
 kcode_offset      equ 0x1000
@@ -155,14 +157,33 @@ load_kernel_code:
         mov di, [bp - stg2_parameters.fat_0]
         mov si, kcode_offset
         call near fat_to_file
-        jmp load_GDT
+        jmp find_kernel_code_block
 
     .no_file:
         write newline
         write no_kernel
-    .local_halt_loop:
+local_halt_loop:
         hlt
-        jmp short .local_halt_loop
+        jmp short local_halt_loop
+
+find_kernel_code_block:
+        mov al, kcode_offset + ELF32_Header.magic
+        cmp al, byte ELF_Magic
+        je .test_signature
+        write invalid_elf_magic
+        jmp local_halt_loop
+    .test_signature:
+        mov cx, 3
+        mov di, kcode_offset + ELF_Header.sig
+        mov si, ELF_Sig
+    repe cmpsb
+        je .read_elf_header
+        write invalid_elf_sig
+        jmp local_halt_loop
+
+    .read_elf_header:
+
+
 
 load_GDT:
        cli
@@ -244,7 +265,12 @@ kbytes                       db ' KiB', CR, LF, NULL
 kernel_start                 db 'Kernel Started', NULL
 no_kernel                    db 'KERNEL.SYS not found.', NULL
 
+ELF_Sig                      db "ELF", NULL
 
+elf_buffer                   db 0, 0, 0 , 0
+
+invalid_elf_magic            db "Invalid ELF header: bad magic", NULL
+invalid_elf_sig              db "Invalid ELF header: bad signature", NULL
 
 %include "init_gdt.inc"
 %include "init_tss.inc"
