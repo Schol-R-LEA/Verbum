@@ -27,9 +27,11 @@
 %include "macros.inc"
 %include "fat-12.inc"
 %include "stage2_parameters.inc"
+%include "hi_mem_map.inc"
 %include "gdt.inc"
 %include "tss.inc"
-%include "hi_mem_map.inc"
+%include "elf.inc"
+
 
 
 ELF_Magic         equ 0x7f
@@ -174,7 +176,7 @@ find_kernel_code_block:
         jmp local_halt_loop
     .test_signature:
         mov cx, 3
-        mov di, kcode_offset + ELF_Header.sig
+        mov di, kcode_offset + ELF32_Header.sig
         mov si, ELF_Sig
     repe cmpsb
         je .read_elf_header
