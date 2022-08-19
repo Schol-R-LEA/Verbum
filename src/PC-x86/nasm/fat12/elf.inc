@@ -20,7 +20,7 @@ struc ELF32_Header
     .program_table_entry_count resw 1
     .section_table_entry_size  resw 1
     .section_table_entry_count resw 1
-    section_table_index        resw 1
+    .section_table_index       resw 1
 endstruc
 
 struc ELF64_Header
@@ -42,7 +42,32 @@ struc ELF64_Header
     .program_table_entry_count resw 1
     .section_table_entry_size  resw 1
     .section_table_entry_count resw 1
-    section_table_index        resw 1
+    .section_table_index       resw 1
 endstruc
+
+
+struc ELF32_Program_Header
+    .p_type                    resd 1
+    .p_offset                  resd 1
+    .p_vaddr                   resd 1
+    .reserved                  resd 1
+    .p_filesz                  resd 1
+    .p_memsz                   resd 1
+    .p_flags                   resd 1
+    .p_align                   resd 1
+endstruc
+
+
+struc ELF64_Program_Header
+    .p_type                    resd 1
+    .p_flags                   resd 1
+    .p_offset                  resq 1
+    .p_vaddr                   resq 1
+    .reserved                  resq 1
+    .p_filesz                  resq 1
+    .p_memsz                   resq 1
+    .p_align                   resq 1
+endstruc
+
 
 %endif
