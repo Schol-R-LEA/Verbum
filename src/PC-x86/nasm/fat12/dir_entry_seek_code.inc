@@ -15,7 +15,7 @@ bits 16
 ;;; seek_directory_entry - seek the directory for the given filename
 ;;; Inputs:
 ;;;       SI - address of the filename to match against
-;;;       DI - directory buffer
+;;;       ES:DI - directory buffer
 ;;;       CX - max. number of entries
 ;;;       BX - size of an entry
 ;;; Outputs:
@@ -26,7 +26,7 @@ seek_directory_entry:
         push si
         push cx
         mov cx, filename_length
-        repne cmpsb             ; does the directory entry match?
+    repe cmpsb                  ; does the directory entry match?
         pop cx
         pop si
         pop di
@@ -34,19 +34,18 @@ seek_directory_entry:
         add di, bx
         loop .dir_entry_test
         mov di, 0x0000          ; if not found, return 0
-        ret
     .entry_found:
         ret
 
 
-;;; read_directory_details - 
+;;; read_directory_details -
 ;;; Inputs:
-;;;       DI - directory entry
+;;;       ES:DI - directory entry
 ;;; Outputs:
 ;;;       BX - First FAT entry of the file
 read_directory_details:
         ;; position of first sector
-        mov bx, [di + directory_entry.cluster_lobits]
+        mov bx, es:[di + directory_entry.cluster_lobits]
        ret
 
 %endif
