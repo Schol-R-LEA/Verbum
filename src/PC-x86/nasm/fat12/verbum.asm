@@ -89,6 +89,7 @@ start:
         mov cx, fat_buffer
         mov [bp - stg2_parameters.drive], dx
         mov [bp - stg2_parameters.fat_0], cx
+        mov [bp - stg2_parameters.directory_buffer], word dir_buffer
         mov [bp - stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
         mov [bp - stg2_parameters.PnP_Entry_Off], di
         mov [bp - stg2_parameters.boot_sig], word bootsig
@@ -110,8 +111,8 @@ start:
         mov cx, Root_Entries
         mov bx, dir_entry_size
         call near seek_directory_entry
-        cmp bx, word 0
-        je .no_file
+        cmp di, word 0
+        jz .no_file
 
         call read_directory_details
 
@@ -123,10 +124,8 @@ start:
 
 ;;; jump to loaded second stage
         jmp stage2_buffer
-        jmp short halted        ; in case of failure
 
     .no_file:
-        jmp short halted
 
 ;;;
 halted:

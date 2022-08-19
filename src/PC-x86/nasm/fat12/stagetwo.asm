@@ -138,12 +138,31 @@ load_kernel_data:
         zero(edx)
         mov dl, byte [bp - stg2_parameters.drive]
         mov [kdata_offset - KData.drive], edx
+        memcopy_rm [bp - stg2_parameters.fat_0], [kdata_offset - KData.fat - fat_size], fat_size
 
 
 load_kernel_code:
+        mov si, kernel_filename
+        mov di, word [bp - stg2_parameters.directory_buffer]
+        mov cx, Root_Entries
+        mov bx, dir_entry_size
+        call near seek_directory_entry
+        cmp di, word 0
+        jz .no_file
 
+        call read_directory_details
 
+        mov di, [bp - stg2_parameters.fat_0]
+        mov si, kcode_offset
+        call near fat_to_file
+        jmp load_GDT
 
+    .no_file:
+        write newline
+        write no_kernel
+    .local_halt_loop:
+        hlt
+        jmp short .local_halt_loop
 
 load_GDT:
        cli
@@ -173,7 +192,7 @@ PModeMain:
         mov gs, ax
         mov esp, 0x00090000
 
-        call clear_screen
+    ;    call clear_screen
 
         ; write 'Kernel started' to text buffer
         write32 kernel_start, 7
@@ -223,8 +242,7 @@ mmap_failed                  db 'Could not retrieve memory map.', NULL
 low_mem                      db 'Low memory total: ', NULL
 kbytes                       db ' KiB', CR, LF, NULL
 kernel_start                 db 'Kernel Started', NULL
-
-
+no_kernel                    db 'KERNEL.SYS not found.', NULL
 
 
 

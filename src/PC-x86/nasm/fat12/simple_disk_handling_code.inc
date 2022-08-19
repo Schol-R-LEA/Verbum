@@ -33,7 +33,7 @@ reset_disk:
         jmp halted
     .reset_end:
         ret
-   
+
 
 ;;; read_LBA_sector - read a sector from a Linear Block Address 
 ;;; Inputs: 
@@ -59,10 +59,10 @@ read_LBA_sector:
 
 
 
-;;; LBA_to_CHS - compute the cylinder, head, and sector 
-;;;              from a linear block address 
-;;; Inputs: 
-;;;       AX = Linear Block Address         
+;;; LBA_to_CHS - compute the cylinder, head, and sector
+;;;              from a linear block address
+;;; Inputs:
+;;;       AX = Linear Block Address
 ;;; Outputs:
 ;;;       CH = Cylinder
 ;;;       DH = Head
@@ -77,14 +77,14 @@ LBA_to_CHS:
         inc dl
         mov cl, dl
         pop ax                  ; retrieve LBA value
-        
+
         ;; Cylinder = LBA / (sectors per cyl * # of heads)   => in AL
         imul bx, Heads
         zero(dx)
         div bx                  ; AX = Cyl #, DL = partial result for Head
         mov ch, al              ; put previous AL into CH
 
-        ;; Head = (LBA % (sectors per cyl * # of heads)) / sectors per cyl   
+        ;; Head = (LBA % (sectors per cyl * # of heads)) / sectors per cyl
         ;;     => first part in DL, final in AL
         mov ax, dx
         zero(dx)
@@ -94,8 +94,8 @@ LBA_to_CHS:
         pop bx
         ret
 
-;;; read_sectors -  
-;;; Inputs: 
+;;; read_sectors -
+;;; Inputs:
 ;;;       AL = # of sectors to read
 ;;;       DL = drive number
 ;;;       CH = Cylinder
@@ -116,11 +116,9 @@ read_sectors:
         jnc short .read_end
         dec di
         jnz short .try_read
-        ; if repeated attempts to read the disk fail, report error code
-;        write failure_state
-;        write read_failed    ; fall-thru to 'exit', don't needs separate write
+
         jmp halted
-        
+
   .read_end:
         popa
         ret
