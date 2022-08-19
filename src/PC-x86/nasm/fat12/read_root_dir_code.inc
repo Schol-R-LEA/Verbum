@@ -4,6 +4,8 @@
 %ifndef READ_ROOT_DIR_CODE__INC
 %define READ_ROOT_DIR_CODE__INC
 
+bits 16
+
 %include "bios.inc"
 %include "macros.inc"
 %include "bpb.inc"

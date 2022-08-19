@@ -27,21 +27,45 @@
 %include "macros.inc"
 %include "fat-12.inc"
 %include "stage2_parameters.inc"
+%include "gdt.inc"
+%include "tss.inc"
+%include "hi_mem_map.inc"
 
-stage2_base     equ 0x0000            ; the segment:offset to load 
-stage2_offset   equ stage2_buffer     ; the second stage into
-                        
+
+ELF_Magic         equ 0x7f
+
+
+stage2_base       equ 0x0000            ; the segment:offset to load 
+stage2_offset     equ stage2_buffer     ; the second stage into
+
+kernel_base       equ 0xffff
+
+kdata_offset      equ 0xfffc
+struc KData
+    .mmap_cnt     resd 1
+    .mmap         resd High_Mem_Map_size
+    .drive        resd 1
+    .fat          resd fat_size
+endstruc
+
+kcode_offset      equ 0x1000
+
+
 bits 16
 org stage2_offset
 section .text
 
 entry:
         write success
+        mov ax, stage2_base
+        mov gs, ax
+        mov ax, stage2_offset
+        call print_hex_seg_offset
         write newline
 
 A20_enable:
         write A20_gate_status
-        lea di, [bp + stg2_parameters.boot_sig]
+        lea di, [bp - stg2_parameters.boot_sig]
         call test_A20
         je .A20_on
 
@@ -52,11 +76,11 @@ A20_enable:
 ;;; parts of this code based on examples given in the 
 ;;; A20 page of the OSDev wiki (https://wiki.osdev.org/A20_Line)
         write A20_gate_trying_bios
-        mov ax, A20_supported  
+        mov ax, A20_supported
         int A20BIOS
         jb .a20_no_bios_support
         cmp ah, 0
-        jnz .a20_no_bios_support 
+        jnz .a20_no_bios_support
  
         mov ax, A20_status
         int A20BIOS
@@ -68,11 +92,11 @@ A20_enable:
         jz .A20_on                   ; A20 is already activated
  
         mov ax, A20_activate
-        int A20BIOS 
+        int A20BIOS
         jb .a20_no_bios_support     ; couldn't activate the gate
         cmp ah, 0
         jz .A20_on                   ; couldn't activate the gate
-        
+
     .a20_no_bios_support:
         call test_A20
         je .A20_on
@@ -81,75 +105,174 @@ A20_enable:
         write no_A20_Gate
         jmp halted
 
-
     .A20_on:
-        write newline      
         write on
+
+
+;; Attempt to get the full physical memory map for the system
+;; this should be done before the move to protected mode
+get_mem_maps:
+        ; get the low memory map
+        write low_mem
+        int LMBIOS
+        mov si, print_buffer
+        call print_decimal_word
+        write kbytes
+        ; get the high memory map
+        push es
+        push si
+        push di
+        push bp
+        mov ax, kernel_base
+        mov es, ax
+        mov di, (kdata_offset - KData.mmap - mem_map_buffer_size)
+        mov si, (kdata_offset - KData.mmap_cnt)
+        call get_hi_memory_map
+        mov di, (kdata_offset - KData.mmap - mem_map_buffer_size)
+        mov bp, es:[kdata_offset - KData.mmap_cnt]
+        call print_hi_mem_map
+        pop bp
+        pop di
+        pop si
+        pop es
+
+load_kernel_data:
+        zero(edx)
+        mov dl, byte [bp - stg2_parameters.drive]
+        mov [kdata_offset - KData.drive], edx
+        memcopy_rm [bp - stg2_parameters.fat_0], [kdata_offset - KData.fat - fat_size], fat_size
+
+
+load_kernel_code:
+        mov si, kernel_filename
+        mov di, word [bp - stg2_parameters.directory_buffer]
+        mov cx, Root_Entries
+        mov bx, dir_entry_size
+        call near seek_directory_entry
+        cmp di, word 0
+        jz .no_file
+
+        call read_directory_details
+
+        mov di, [bp - stg2_parameters.fat_0]
+        mov si, kcode_offset
+        call near fat_to_file
+        jmp find_kernel_code_block
+
+    .no_file:
+        write newline
+        write no_kernel
+local_halt_loop:
+        hlt
+        jmp short local_halt_loop
+
+find_kernel_code_block:
+        mov al, kcode_offset + ELF32_Header.magic
+        cmp al, byte ELF_Magic
+        je .test_signature
+        write invalid_elf_magic
+        jmp local_halt_loop
+    .test_signature:
+        mov cx, 3
+        mov di, kcode_offset + ELF_Header.sig
+        mov si, ELF_Sig
+    repe cmpsb
+        je .read_elf_header
+        write invalid_elf_sig
+        jmp local_halt_loop
+
+    .read_elf_header:
+
+
+
+load_GDT:
+       cli
+       call setGdt_rm
+
+
+       ; switch to 32-bit protected mode
+promote_pm:
+        mov eax, cr0
+        or al, 1       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
+        mov cr0, eax
+
+        ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
+        ; to load CS with proper PM32 descriptor)
+        jmp system_code_selector:PModeMain
+
+
+%line 0 pmode.asm
+bits 32
+PModeMain:
+        ; set the segment selectors
+        mov ax, system_data_selector
+        mov ds, ax
+        mov ss, ax
+        mov es, ax
+        mov fs, ax
+        mov gs, ax
+        mov esp, 0x00090000
+
+    ;    call clear_screen
+
+        ; write 'Kernel started' to text buffer
+        write32 kernel_start, 7
 
 ;;; halt the CPU
 halted:
-        write newline
-        write exit
     .halted_loop:
         hlt
         jmp short .halted_loop
-        
 
 
-;;; test_A20 - check to see if the A20 line is enabled
-;;; Inputs:
-;;;       SI - effective address to test
-;;;       DS - data segment of the tested address
-;;; Outputs:
-;;;       Zero flag - set = A20 on, clear = A20 off
-test_A20:
-        push ax
-        push bx
-        push cx
-        push dx
-        push es
+bits 16
 
-        mov cx, 2
-    .test_loop:
-        mov ax, 0xFFFF
-        mov es, ax
-        mov di, si
-        add di, 0x10            ; 16 byte difference due to segment spacing
-        mov bx, word [ds:si]
-        mov dx, word [es:di]
-        cmp bx, dx
-        mov [ds:si], word 0xDEAD
-        mov [es:di], word 0xBEEF
-        loopne .test_loop
-    .cleanup:
-        pop es
-        pop dx
-        pop cx
-        pop bx
-        pop ax
-        ret
-
+%line 0 aux.asm
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;Auxilliary functions      
+;;;;Auxilliary functions
 %include "simple_text_print_code.inc"
 %include "print_hex_code.inc"
+%include "print_hex_long_code.inc"
+%include "print_decimal_code.inc"
 %include "simple_disk_handling_code.inc"
 %include "read_fat_code.inc"
 %include "read_root_dir_code.inc"
 %include "dir_entry_seek_code.inc"
 %include "fat_to_file_code.inc"
+%include "a20_code.inc"
+%include "high_mem_map_code.inc"
+%include "print32_code.inc"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 ;;         [section .data]
-
+kernel_filename              db "KERNEL  SYS", NULL
+null                         dd 00000000
+lparen                       db '(', NULL
+rparen                       db ')', NULL
+print_buffer                 resb 32
 newline                      db CR, LF, NULL
 exit                         db 'System Halted.', CR, LF, NULL
-
-success                      db 'Control successfully transferred to second stage.', CR, LF, NULL
+success                      db 'Control successfully transferred to second stage at ', NULL
 A20_gate_status              db 'A20 Line Status: ', NULL
 on                           db 'on.', CR, LF, NULL
 off                          db 'off.', CR, LF, NULL
-A20_gate_trying_bios         db 'Attempting to activate A20 line with BIOS...', NULL
+A20_gate_trying_bios         db 'Attempting to activate A20 line with BIOS... ', NULL
 no_A20_Gate                  db 'A20 gate not found.', CR, LF, NULL
-        
+mmap_failed                  db 'Could not retrieve memory map.', NULL
+low_mem                      db 'Low memory total: ', NULL
+kbytes                       db ' KiB', CR, LF, NULL
+kernel_start                 db 'Kernel Started', NULL
+no_kernel                    db 'KERNEL.SYS not found.', NULL
+
+ELF_Sig                      db "ELF", NULL
+
+elf_buffer                   db 0, 0, 0 , 0
+
+invalid_elf_magic            db "Invalid ELF header: bad magic", NULL
+invalid_elf_sig              db "Invalid ELF header: bad signature", NULL
+
+%include "init_gdt.inc"
+%include "init_tss.inc"
+;%include "init_idt.inc"
+

@@ -4,6 +4,8 @@
 %ifndef READ_FAT_CODE__INC
 %define READ_FAT_CODE__INC
 
+bits 16
+
 %include "bios.inc"
 %include "macros.inc"
 %include "bpb.inc"

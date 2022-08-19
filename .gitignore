@@ -11,3 +11,9 @@
 *.bin
 *.img
 *.qcow2
+*.zip
+*.gz
+*.tar
+.clj-kondo/.cache/v1/lock
+.clj-kondo
+.lsp

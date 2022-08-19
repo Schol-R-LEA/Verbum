@@ -35,7 +35,7 @@
 ;boot_offset      equ 0x7C00      ; boot code entrypoint
 
 ;; ensure that there is no segment overlap
-stack_segment    equ 0x1000  
+stack_segment    equ 0x1000
 stack_top        equ 0xFFFE
 
 ;;;operational constants
@@ -70,8 +70,9 @@ start:
         ;;  and other things passed by the boot sector
         mov ax, stack_top
         sub ax, stg2_parameters_size
+        mov bp, ax
+        sub ax, 32              ; create a 32 byte stack frame for the stage two parameters
         mov sp, ax
-        mov bp, sp
         sti                     ; reset ints so BIOS calls can be used
 
         ;; set the remaining segment registers to match CS
@@ -86,11 +87,13 @@ start:
         ;; find the start of the stage 2 parameter frame
         ;;  and populated the frame
         mov cx, fat_buffer
-        mov [bp + stg2_parameters.drive], dx
-        mov [bp + stg2_parameters.fat_0], cx
-        mov [bp + stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
-        mov [bp + stg2_parameters.PnP_Entry_Off], di
-        mov [bp + stg2_parameters.boot_sig], word bootsig
+        mov [bp - stg2_parameters.drive], dx
+        mov [bp - stg2_parameters.fat_0], cx
+        mov [bp - stg2_parameters.directory_buffer], word dir_buffer
+        mov [bp - stg2_parameters.PnP_Entry_Seg], bx ; BX == old ES value
+        mov [bp - stg2_parameters.PnP_Entry_Off], di
+        mov [bp - stg2_parameters.boot_sig], word bootsig
+        mov [bp - stg2_parameters.bpb], word boot_bpb
 
 ;;; reset the disk drive
         call near reset_disk
@@ -108,9 +111,9 @@ start:
         mov cx, Root_Entries
         mov bx, dir_entry_size
         call near seek_directory_entry
-        cmp bx, word 0
-        je .no_file
-        
+        cmp di, word 0
+        jz .no_file
+
         call read_directory_details
 
         mov di, fat_buffer
@@ -119,26 +122,21 @@ start:
 
     .stg2_read_finished:
 
- ;;; jump to loaded second stage
+;;; jump to loaded second stage
         jmp stage2_buffer
-        jmp short halted        ; in case of failure
- 
-    .no_file:
-;        write failure_state
-;        write read_failed
-        jmp short halted
 
-;;;  
+    .no_file:
+
+;;;
 halted:
-;        write exit
     .halted_loop:
         hlt
         jmp short .halted_loop
-   
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;Auxilliary functions      
+;;;;Auxilliary functions
 %include "simple_text_print_code.inc"
-;%include "print_hex_code.inc"
+%include "print_hex_code.inc"
 %include "simple_disk_handling_code.inc"
 %include "read_fat_code.inc"
 %include "read_root_dir_code.inc"
@@ -148,24 +146,9 @@ halted:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  data
 ;;[section .data]
-     
 ;;[section .rodata]
 
 snd_stage_file  db 'STAGETWOSYS', NULL
-
-; reading_fat     db 'Get sector...', NULL
-;loading         db 'Load stage 2...', NULL
-;separator       db ':', NULL
-;comma_done      db ', '
-;done            db 'done.',
-;nl              db CR, LF, NULL
-;failure_state   db 'Cannot ', NULL
-;reset_failed    db 'reset,', NULL
-;read_failed     db 'read,', NULL
-;exit            db ' .', NULL
-;oops            db 'Oops.', NULL 
-;space_char      db ' ', NULL
-;Found           db 'Found at sector ', NULL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; pad out to 510, and then add the last two bytes needed for a boot disk

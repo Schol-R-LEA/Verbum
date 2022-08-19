@@ -13,6 +13,4 @@ ascii_zero      equ 0x30
 ascii_upper_A   equ 0x41
 ascii_lower_a   equ 0x61
 
-upper_numerals  equ ascii_upper_A - 10
-
 %endif
