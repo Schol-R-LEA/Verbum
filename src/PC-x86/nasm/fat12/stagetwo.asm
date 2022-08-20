@@ -164,6 +164,7 @@ load_kernel_code:
     .no_file:
         write newline
         write no_kernel
+        
 local_halt_loop:
         hlt
         jmp short local_halt_loop
