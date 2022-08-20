@@ -139,11 +139,10 @@ get_mem_maps:
         pop es
 
 load_kernel_data:
-        zero(edx)
-        mov dl, byte [bp - stg2_parameters.drive]
+        mov dx, word [bp - stg2_parameters.drive]
         mov [kdata_offset - KData.drive], edx
-        memcopy_rm [bp - stg2_parameters.fat_0], [kdata_offset - KData.fat - fat_size], fat_size
-
+        lea ax, [kdata_offset - KData.fat - fat_size]
+        memcopy_rm ax, [bp - stg2_parameters.fat_0], fat_size
 
         write newline
 
@@ -164,7 +163,7 @@ load_kernel_code:
         write kernel_file_found
 
         ; reset the disk drive
-        mov dx, word [bp - stg2_parameters.drive]
+
         call near reset_disk
         mov di, word [bp - stg2_parameters.fat_0]
         mov si, kcode_offset
@@ -172,7 +171,6 @@ load_kernel_code:
         push es
         mov ax, kernel_base
         mov es, ax
-        mov dx, word [bp - stg2_parameters.drive]
         call near fat_to_file
         pop es
         pop ax
@@ -181,7 +179,9 @@ load_kernel_code:
 
 
 find_kernel_code_block:
-        mov al, byte [kcode_offset + ELF32_Header.magic]
+        mov ax, kernel_base
+        mov es, ax
+        mov al, byte es:[kcode_offset + ELF32_Header.magic]
         cmp al, byte ELF_Magic
         je .test_signature
         write invalid_elf_magic

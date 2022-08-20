@@ -56,7 +56,7 @@
        mov di, %1
        mov si, %2
        mov cx, %3
-   rep stosb
+   rep movsb
        pop cx
        pop si
        pop di
@@ -70,7 +70,7 @@
        mov edi, %1
        mov esi, %2
        mov ecx, %3
-   rep stosb
+   rep movsb
        pop ecx
        pop esi
        pop edi
