@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; routine for printing integer values in hex
+;;; routines for basic floppy disk handling
 
 %ifndef SIMPLE_DISK_HANDLING_CODE__INC
 %define SIMPLE_DISK_HANDLING_CODE__INC
@@ -26,10 +26,6 @@ reset_disk:
         jnc short .reset_end
         dec di
         jnz short .try_reset
-        ;;; if repeated attempts to reset the disk fail, report error code
- ;       write failure_state
- ;       write reset_failed
- ;       write exit
         jmp halted
     .reset_end:
         ret
@@ -48,7 +44,7 @@ read_LBA_sector:
         pusha
         call near LBA_to_CHS
         mov ah, dh              ; temporary swap
-        mov dx, [bp + stg2_parameters.drive] ; get the value for DL
+        mov dx, [bp - stg2_parameters.drive] ; get the value for DL
         mov dh, ah
         mov al, 1
         call near read_sectors

@@ -164,13 +164,15 @@ load_kernel_code:
         write kernel_file_found
 
         ; reset the disk drive
+        mov dx, word [bp - stg2_parameters.drive]
         call near reset_disk
-        mov di, [bp - stg2_parameters.fat_0]
+        mov di, word [bp - stg2_parameters.fat_0]
         mov si, kcode_offset
         push ax
         push es
         mov ax, kernel_base
         mov es, ax
+        mov dx, word [bp - stg2_parameters.drive]
         call near fat_to_file
         pop es
         pop ax
@@ -179,7 +181,7 @@ load_kernel_code:
 
 
 find_kernel_code_block:
-        mov al, kcode_offset + ELF32_Header.magic
+        mov al, byte [kcode_offset + ELF32_Header.magic]
         cmp al, byte ELF_Magic
         je .test_signature
         write invalid_elf_magic

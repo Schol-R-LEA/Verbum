@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; routine for finding a directory entry
+;;; routines for loading a file from a FAT entry chain
 
 %ifndef FAT_TO_FILE_CODE__INC
 %define FAT_TO_FILE_CODE__INC
@@ -12,8 +12,6 @@ bits 16
 %include "dir_entry.inc"
 %include "stage2_parameters.inc"
 %include "simple_disk_handling_code.inc"
-%include "simple_text_print_code.inc"
-%include "print_hex_code.inc"
 
 hi_nibble_mask        equ 0x0FFF
 lo_nibble_shift       equ 4
@@ -34,7 +32,6 @@ fat_to_file:
         mov ax, bx
         sub ax, 2
         add ax, first_data_sector
-;        call print_hex_word
         push bx
         mov bx, si
         call read_LBA_sector
@@ -42,13 +39,10 @@ fat_to_file:
         call extract_next_fat12_entry
         mov bx, ax
         add si, Bytes_Per_Sector
-;        test ax, end_of_chain_mask
-;        jnz .read_loop
         cmp ax, end_of_chain_mask
         jb .read_loop
 
     .end_of_file:
-;        call print_hex_word
         ret
 
 ;;; extract_next_fat12_entry - read a FAT entry to
@@ -72,11 +66,9 @@ extract_next_fat12_entry:
         jz .even
     .odd:
         shr ax, lo_nibble_shift ; extract the high bits
-;        call print_hex_word
         ret
     .even:
         and ax, hi_nibble_mask  ; extract the low bits
-;        call print_hex_word
         ret
 
 %endif
