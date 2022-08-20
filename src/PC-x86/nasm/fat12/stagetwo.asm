@@ -145,6 +145,8 @@ load_kernel_data:
         memcopy_rm [bp - stg2_parameters.fat_0], [kdata_offset - KData.fat - fat_size], fat_size
 
 
+        write newline
+
 load_kernel_code:
         mov si, kernel_filename
         mov di, word [bp - stg2_parameters.directory_buffer]
@@ -152,22 +154,29 @@ load_kernel_code:
         mov bx, dir_entry_size
         call near seek_directory_entry
         cmp di, word 0
-        jz .no_file
+        jnz .read_directory
 
+        write no_kernel
+        jmp local_halt_loop
+
+    .read_directory:
         call read_directory_details
+        write kernel_file_found
 
+        ; reset the disk drive
+        call near reset_disk
         mov di, [bp - stg2_parameters.fat_0]
         mov si, kcode_offset
+        push ax
+        push es
+        mov ax, kernel_base
+        mov es, ax
         call near fat_to_file
+        pop es
+        pop ax
+        write kernel_loaded
         jmp find_kernel_code_block
 
-    .no_file:
-        write newline
-        write no_kernel
-        
-local_halt_loop:
-        hlt
-        jmp short local_halt_loop
 
 find_kernel_code_block:
         mov al, kcode_offset + ELF32_Header.magic
@@ -230,6 +239,12 @@ halted:
 
 bits 16
 
+
+local_halt_loop:
+        hlt
+        jmp short local_halt_loop
+
+
 %line 0 aux.asm
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;Auxilliary functions
@@ -267,6 +282,10 @@ low_mem                      db 'Low memory total: ', NULL
 kbytes                       db ' KiB', CR, LF, NULL
 kernel_start                 db 'Kernel Started', NULL
 no_kernel                    db 'KERNEL.SYS not found.', NULL
+
+kernel_file_found            db 'KERNEL.SYS found...', NULL
+kernel_loaded                db 'loaded.', CR, LF, NULL
+
 
 ELF_Sig                      db "ELF", NULL
 
