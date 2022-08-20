@@ -166,11 +166,8 @@ load_kernel_code:
 
         call near reset_disk
         mov di, word [bp - stg2_parameters.fat_0]
-        mov si, kcode_offset
-        push ax
-        push es
-        mov ax, kernel_base
-        mov es, ax
+        mov si, kernel_raw_buffer
+
         call near fat_to_file
         pop es
         pop ax
@@ -179,16 +176,14 @@ load_kernel_code:
 
 
 find_kernel_code_block:
-        mov ax, kernel_base
-        mov es, ax
-        mov al, byte es:[kcode_offset + ELF32_Header.magic]
+        mov al, byte [kernel_raw_buffer + ELF32_Header.magic]
         cmp al, byte ELF_Magic
         je .test_signature
         write invalid_elf_magic
         jmp local_halt_loop
     .test_signature:
         mov cx, 3
-        mov di, kcode_offset + ELF32_Header.sig
+        mov di, kernel_raw_buffer + ELF32_Header.sig
         mov si, ELF_Sig
     repe cmpsb
         je .read_elf_header
@@ -196,8 +191,8 @@ find_kernel_code_block:
         jmp local_halt_loop
 
     .read_elf_header:
-
-
+        write valid_elf_file
+        
 
 load_GDT:
        cli
@@ -291,12 +286,16 @@ kernel_loaded                db 'loaded.', CR, LF, NULL
 
 ELF_Sig                      db "ELF", NULL
 
-elf_buffer                   db 0, 0, 0 , 0
+elf_buffer                   db 0, 0, 0, 0
 
 invalid_elf_magic            db "Invalid ELF header: bad magic", NULL
 invalid_elf_sig              db "Invalid ELF header: bad signature", NULL
+
+valid_elf_file               db 'Valid ELF file.', CR, LF, NULL
+
 
 %include "init_gdt.inc"
 %include "init_tss.inc"
 ;%include "init_idt.inc"
 
+kernel_raw_buffer            resb 0x2000    ; set aside 8KB for the kernel file raw image
