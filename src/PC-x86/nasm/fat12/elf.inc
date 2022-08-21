@@ -1,10 +1,21 @@
 %ifndef ELF__INC
 %define ELF__INC
 
+ELF_little_endian              equ 1
+ELF_type_relocatable           equ 1
+ELF_type_executable            equ 2
+ELF_type_shared                equ 3
+ELF_type_core                  equ 4
+
+ELF_ISA_x86                    equ 3
+
+ELF_Header_executable_type     equ 1
+
 struc ELF32_Header
     .magic                     resb 1
     .sig                       resb 3
     .width                     resb 1
+    .endianness                resb 1
     .header_version            resb 1
     .abi                       resb 1
     .reserved                  resb 8
@@ -27,6 +38,7 @@ struc ELF64_Header
     .magic                     resb 1
     .sig                       resb 3
     .width                     resb 1
+    .endianness                resb 1
     .header_version            resb 1
     .abi                       resb 1
     .reserved                  resb 8
@@ -50,7 +62,7 @@ struc ELF32_Program_Header
     .p_type                    resd 1
     .p_offset                  resd 1
     .p_vaddr                   resd 1
-    .reserved                  resd 1
+    .p_paddr                   resd 1
     .p_filesz                  resd 1
     .p_memsz                   resd 1
     .p_flags                   resd 1
@@ -63,7 +75,7 @@ struc ELF64_Program_Header
     .p_flags                   resd 1
     .p_offset                  resq 1
     .p_vaddr                   resq 1
-    .reserved                  resq 1
+    .p_paddr                   resq 1
     .p_filesz                  resq 1
     .p_memsz                   resq 1
     .p_align                   resq 1

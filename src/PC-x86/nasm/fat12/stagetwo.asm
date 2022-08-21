@@ -52,7 +52,6 @@ endstruc
 
 kcode_offset      equ 0x1000
 
-
 bits 16
 org stage2_offset
 section .text
@@ -181,18 +180,72 @@ find_kernel_code_block:
         je .test_signature
         write invalid_elf_magic
         jmp local_halt_loop
+
     .test_signature:
         mov cx, 3
         mov di, kernel_raw_buffer + ELF32_Header.sig
         mov si, ELF_Sig
     repe cmpsb
-        je .read_elf_header
+        je .test_elf_endianness
         write invalid_elf_sig
         jmp local_halt_loop
 
-    .read_elf_header:
+    .test_elf_endianness:
+        mov al, byte [kernel_raw_buffer + ELF32_Header.endianness]
+        cmp al, ELF_little_endian
+        je .test_elf_isa
+        write elf_big_endian
+        jmp local_halt_loop
+
+    .test_elf_isa:
+        mov al, byte [kernel_raw_buffer + ELF32_Header.isa]
+        cmp al, ELF_ISA_x86
+        je .test_elf_executable
+        write elf_not_x86
+        jmp local_halt_loop
+
+    .test_elf_executable:
+        mov ax, word [kernel_raw_buffer + ELF32_Header.type]
+        cmp ax, ELF_type_executable
+        je .read_elf_header_table
+        write non_executable_elf_file
+        jmp local_halt_loop
+
+    .read_elf_header_table:
         write valid_elf_file
-        
+        ; set up an offset for the code sections in memory
+        mov [section_offset_buffer], word kcode_offset
+        mov cx, [kernel_raw_buffer + ELF32_Header.program_table_entry_count]
+
+        ; mov ax, cx
+        ; call print_hex_word
+        ; write newline
+
+    .program_header_loop:
+        mov bx, [kernel_raw_buffer + ELF32_Header.program_header_table]
+        add bx, kernel_raw_buffer
+        mov ax, [bx + ELF32_Program_Header.p_type]
+        cmp ax, ELF_Header_executable_type
+        jne .loop_continue
+        ; first, clear the region of memory to load to
+        push es
+        mov ax, kernel_base
+        mov es, ax
+        mov dx, [bx + ELF32_Program_Header.p_memsz]
+        add [section_offset_buffer], dx            ; dx = total size to allocate to the kernel code memory area
+        push bx
+        memset_rm 0, bx, dx
+        pop bx
+
+        ; move the code section of the file to the kernel code memory area
+        memcopy_rm [section_offset_buffer], [bx + ELF32_Program_Header.p_offset], [bx + ELF32_Program_Header.p_filesz]
+        pop es
+
+    .loop_continue:
+        ; advance the pointer through the header array
+        add bx, ELF32_Program_Header_size
+        loop .program_header_loop
+
 
 load_GDT:
        cli
@@ -291,11 +344,22 @@ elf_buffer                   db 0, 0, 0, 0
 invalid_elf_magic            db "Invalid ELF header: bad magic", NULL
 invalid_elf_sig              db "Invalid ELF header: bad signature", NULL
 
-valid_elf_file               db 'Valid ELF file.', CR, LF, NULL
+elf_big_endian               db 'ELF file not little-endian.', NULL
+
+elf_not_x86                  db 'ELF file not for x86 ISA.', NULL
+
+non_executable_elf_file      db 'ELF file not executable.', NULL
+
+
+valid_elf_file               db 'Valid x86 ELF32 executable file.', CR, LF, NULL
+
+
+
+section_offset_buffer        resw 1
 
 
 %include "init_gdt.inc"
 %include "init_tss.inc"
 ;%include "init_idt.inc"
 
-kernel_raw_buffer            resb 0x2000    ; set aside 8KB for the kernel file raw image
+kernel_raw_buffer            resb 0x4000    ; set aside 16KB for the kernel file raw image

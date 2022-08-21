@@ -56,6 +56,7 @@
        mov di, %1
        mov si, %2
        mov cx, %3
+       cld
    rep movsb
        pop cx
        pop si
@@ -70,6 +71,7 @@
        mov edi, %1
        mov esi, %2
        mov ecx, %3
+       cld
    rep movsb
        pop ecx
        pop esi
