@@ -31,10 +31,8 @@
 %include "gdt.inc"
 %include "tss.inc"
 %include "elf.inc"
+%include "paging.inc"
 
-
-
-ELF_Magic         equ 0x7f
 
 
 stage2_base       equ 0x0000            ; the segment:offset to load 
@@ -50,7 +48,10 @@ struc KData
     .fat          resd fat_size
 endstruc
 
-kcode_offset      equ 0x1000
+kcode_offset      equ 0x0010
+
+kernel_raw_base   equ 0x1000
+kernel_raw_offset equ 0x0000
 
 bits 16
 org stage2_offset
@@ -146,6 +147,8 @@ load_kernel_data:
         write newline
 
 load_kernel_code:
+        push ax
+        push es
         mov si, kernel_filename
         mov di, word [bp - stg2_parameters.directory_buffer]
         mov cx, Root_Entries
@@ -164,18 +167,22 @@ load_kernel_code:
         ; reset the disk drive
 
         call near reset_disk
-        mov di, word [bp - stg2_parameters.fat_0]
-        mov si, kernel_raw_buffer
 
+        mov di, word [bp - stg2_parameters.fat_0]
+        mov ax, kernel_raw_base
+        mov es, ax
+        mov si, kernel_raw_offset
         call near fat_to_file
         pop es
         pop ax
         write kernel_loaded
-        jmp find_kernel_code_block
 
 
 find_kernel_code_block:
-        mov al, byte [kernel_raw_buffer + ELF32_Header.magic]
+        push gs
+        mov ax, kernel_raw_base
+        mov gs, ax
+        mov al, byte gs:[kernel_raw_offset + ELF32_Header.magic]
         cmp al, byte ELF_Magic
         je .test_signature
         write invalid_elf_magic
@@ -183,29 +190,33 @@ find_kernel_code_block:
 
     .test_signature:
         mov cx, 3
-        mov di, kernel_raw_buffer + ELF32_Header.sig
+        mov di, kernel_raw_offset + ELF32_Header.sig
+        push es
+        mov ax, kernel_raw_base
+        mov es, ax
         mov si, ELF_Sig
     repe cmpsb
+        pop es
         je .test_elf_endianness
         write invalid_elf_sig
         jmp local_halt_loop
 
     .test_elf_endianness:
-        mov al, byte [kernel_raw_buffer + ELF32_Header.endianness]
+        mov al, byte gs:[kernel_raw_offset + ELF32_Header.endianness]
         cmp al, ELF_little_endian
         je .test_elf_isa
         write elf_big_endian
         jmp local_halt_loop
 
     .test_elf_isa:
-        mov al, byte [kernel_raw_buffer + ELF32_Header.isa]
+        mov al, byte gs:[kernel_raw_offset + ELF32_Header.isa]
         cmp al, ELF_ISA_x86
         je .test_elf_executable
         write elf_not_x86
         jmp local_halt_loop
 
     .test_elf_executable:
-        mov ax, word [kernel_raw_buffer + ELF32_Header.type]
+        mov ax, word gs:[kernel_raw_offset + ELF32_Header.type]
         cmp ax, ELF_type_executable
         je .read_elf_header_table
         write non_executable_elf_file
@@ -215,17 +226,18 @@ find_kernel_code_block:
         write valid_elf_file
         ; set up an offset for the code sections in memory
         mov [section_offset_buffer], word kcode_offset
-        mov cx, [kernel_raw_buffer + ELF32_Header.program_table_entry_count]
+        mov cx, gs:[kernel_raw_offset + ELF32_Header.program_table_entry_count]
 
-        ; mov ax, cx
-        ; call print_hex_word
-        ; write newline
+        write number_of_sections
+        mov ax, cx
+        call print_decimal_word
+        write newline
 
     .program_header_loop:
-        mov bx, [kernel_raw_buffer + ELF32_Header.program_header_table]
-        add bx, kernel_raw_buffer
+        mov bx, gs:[kernel_raw_offset + ELF32_Header.program_header_table]
+        add bx, kernel_raw_offset
         mov ax, [bx + ELF32_Program_Header.p_type]
-        cmp ax, ELF_Header_executable_type
+        cmp ax, ELF_Header_loadable_type
         jne .loop_continue
         ; first, clear the region of memory to load to
         push es
@@ -245,8 +257,7 @@ find_kernel_code_block:
         ; advance the pointer through the header array
         add bx, ELF32_Program_Header_size
         loop .program_header_loop
-
-
+        pop gs
 load_GDT:
        cli
        call setGdt_rm
@@ -353,7 +364,7 @@ non_executable_elf_file      db 'ELF file not executable.', NULL
 
 valid_elf_file               db 'Valid x86 ELF32 executable file.', CR, LF, NULL
 
-
+number_of_sections           db 'Number of sections: ', NULL
 
 section_offset_buffer        resw 1
 
@@ -361,5 +372,3 @@ section_offset_buffer        resw 1
 %include "init_gdt.inc"
 %include "init_tss.inc"
 ;%include "init_idt.inc"
-
-kernel_raw_buffer            resb 0x4000    ; set aside 16KB for the kernel file raw image

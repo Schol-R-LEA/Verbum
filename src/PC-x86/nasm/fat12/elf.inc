@@ -1,6 +1,7 @@
 %ifndef ELF__INC
 %define ELF__INC
 
+ELF_Magic                      equ 0x7f
 ELF_little_endian              equ 1
 ELF_type_relocatable           equ 1
 ELF_type_executable            equ 2
@@ -9,7 +10,7 @@ ELF_type_core                  equ 4
 
 ELF_ISA_x86                    equ 3
 
-ELF_Header_executable_type     equ 1
+ELF_Header_loadable_type       equ 1
 
 struc ELF32_Header
     .magic                     resb 1
