@@ -241,21 +241,26 @@ find_kernel_code_block:
     .program_header_loop:
         mov bx, gs:[kernel_raw_offset + ELF32_Header.program_header_table]
         add bx, kernel_raw_offset
-        mov ax, [bx + ELF32_Program_Header.p_type]
+        mov ax, gs:[bx + ELF32_Program_Header.p_type]
         cmp ax, ELF_Header_loadable_type
         jne .loop_continue
         ; first, clear the region of memory to load to
         push es
         mov ax, kernel_base
         mov es, ax
-        mov dx, [bx + ELF32_Program_Header.p_memsz]
+        mov dx, gs:[bx + ELF32_Program_Header.p_memsz]
         add [section_offset_buffer], dx            ; dx = total size to allocate to the kernel code memory area
         push bx
         memset_rm 0, bx, dx
         pop bx
 
         ; move the code section of the file to the kernel code memory area
+
+        push ds
+        mov ax, gs
+        mov ds, ax
         memcopy_rm [section_offset_buffer], [bx + ELF32_Program_Header.p_offset], [bx + ELF32_Program_Header.p_filesz]
+        pop ds
         pop es
 
     .loop_continue:
@@ -263,6 +268,7 @@ find_kernel_code_block:
         add bx, ELF32_Program_Header_size
         loop .program_header_loop
         pop gs
+
 load_GDT:
        cli
        call setGdt_rm

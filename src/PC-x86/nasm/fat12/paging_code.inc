@@ -61,16 +61,16 @@ init_page_directory:
         shl eax, 12
         or eax, PDE_Present
         mov [bx], eax
-        ; add bx, 768 * 4
-        ; mov eax, page_table_768
-        ; shl eax, 12
-        ; or eax, PDE_Present
-        ; mov [bx], eax
-        ; add bx, 1023 * 4
-        ; mov eax, page_table_1023
-        ; shl eax, 12
-        ; or eax, PDE_Present
-        ; mov [bx], eax
+        add bx, 768 * 4
+        mov eax, page_table_768
+        shl eax, 12
+        or eax, PDE_Present
+        mov [bx], eax
+        add bx, 1023 * 4
+        mov eax, page_table_1023
+        shl eax, 12
+        or eax, PDE_Present
+        mov [bx], eax
 
 
         ; set the page directory
