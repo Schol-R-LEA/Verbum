@@ -53,6 +53,11 @@ kcode_offset      equ 0x0010
 kernel_raw_base   equ 0x1000
 kernel_raw_offset equ 0x0000
 
+
+Protection        equ 1
+Paging            equ 0x80000000
+
+
 bits 16
 org stage2_offset
 section .text
@@ -265,8 +270,10 @@ load_GDT:
 
        ; switch to 32-bit protected mode
 promote_pm:
+        call init_page_directory
+
         mov eax, cr0
-        or al, 1       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
+        or eax, Protection | Paging ; set PE (Protection Enable) and Paging bits in CR0 (Control Register 0)
         mov cr0, eax
 
         ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
@@ -372,3 +379,4 @@ section_offset_buffer        resw 1
 %include "init_gdt.inc"
 %include "init_tss.inc"
 ;%include "init_idt.inc"
+%include "paging_code.inc"
