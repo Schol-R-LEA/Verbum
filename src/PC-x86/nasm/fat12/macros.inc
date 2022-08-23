@@ -38,7 +38,7 @@
         push eax
         push ecx
         push edi
-        mov eax, %1
+        mov al, %1
         mov ecx, %2
         mov edi, %3
         cld

@@ -41,6 +41,7 @@ stage2_offset     equ stage2_buffer     ; the second stage into
 kernel_base       equ 0xffff
 
 kdata_offset      equ 0xfffc
+
 struc KData
     .mmap_cnt     resd 1
     .mmap         resd High_Mem_Map_size
@@ -49,7 +50,6 @@ struc KData
 endstruc
 
 kcode_offset      equ 0x0010
-
 kernel_raw_base   equ 0x1000
 kernel_raw_offset equ 0x0000
 
@@ -275,11 +275,11 @@ load_GDT:
 
        ; switch to 32-bit protected mode
 promote_pm:
-        call init_page_directory
-
         mov eax, cr0
-        or eax, Protection | Paging ; set PE (Protection Enable) and Paging bits in CR0 (Control Register 0)
+        or eax, Protection       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
         mov cr0, eax
+
+
 
         ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
         ; to load CS with proper PM32 descriptor)
@@ -297,6 +297,11 @@ PModeMain:
         mov fs, ax
         mov gs, ax
         mov esp, 0x00090000
+
+        call init_page_directory
+        mov eax, cr0
+        or eax, Paging           ; set Paging bit in CR0 (Control Register 0)
+        mov cr0, eax
 
     ;    call clear_screen
 
