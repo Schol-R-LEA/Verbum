@@ -298,12 +298,12 @@ PModeMain:
         mov gs, ax
         mov esp, 0x00090000
 
+
         call init_page_directory
+
         mov eax, cr0
         or eax, Paging           ; set Paging bit in CR0 (Control Register 0)
         mov cr0, eax
-
-    ;    call clear_screen
 
         ; write 'Kernel started' to text buffer
         write32 kernel_start, 7
