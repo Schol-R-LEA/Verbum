@@ -35,27 +35,29 @@
 
 
 
-stage2_base       equ 0x0000            ; the segment:offset to load 
-stage2_offset     equ stage2_buffer     ; the second stage into
+stage2_base        equ 0x0000            ; the segment:offset to load 
+stage2_offset      equ stage2_buffer     ; the second stage into
 
-kernel_base       equ 0xffff
+kernel_base        equ 0xffff
 
-kdata_offset      equ 0xfffc
+kdata_offset       equ 0xfffc
 
 struc KData
-    .mmap_cnt     resd 1
-    .mmap         resd High_Mem_Map_size
-    .drive        resd 1
-    .fat          resd fat_size
+    .mmap_cnt      resd 1
+    .mmap          resd High_Mem_Map_size
+    .drive         resd 1
+    .fat           resd fat_size
 endstruc
 
-kcode_offset      equ 0x0010
-kernel_raw_base   equ 0x1000
-kernel_raw_offset equ 0x0000
+kcode_offset       equ 0x0010
+kernel_raw_base    equ 0x1000
+kernel_raw_offset  equ 0x0000
 
 
-Protection        equ 1
-Paging            equ 0x80000000
+Protection         equ 1
+Paging             equ 0x80000000
+
+Kernel_linear_addr equ 0xc0000000
 
 
 bits 16
@@ -309,6 +311,8 @@ PModeMain:
         ; write 'Kernel started' to text buffer
         write32 kernel_start, 7
 
+        jmp Kernel_linear_addr
+
 ;;; halt the CPU
 halted:
     .halted_loop:
@@ -317,8 +321,6 @@ halted:
 
 
 bits 16
-
-
 local_halt_loop:
         hlt
         jmp short local_halt_loop
