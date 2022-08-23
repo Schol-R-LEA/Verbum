@@ -3,15 +3,16 @@
 
 bits 16
 
-align 4096
-page_directory     resw 0x0400
-
-page_table_0       resw 0x0400
-page_table_768     resw 0x0400
-
-page_table_1023    resw 0x0400
+paging_tables_base       equ 0x2000
+page_directory           equ 0x0000
+page_table_0             equ 0x1000
+page_table_768           equ 0x2000
+page_table_1023          equ 0x3000
 
 init_page_directory:
+        push es
+        mov ax, paging_tables_base
+        mov es, ax
         mov bx, page_directory
         memset_rm 0, 0x0400, bx               ; clear the page dir table
 
@@ -22,7 +23,7 @@ init_page_directory:
         mov cx, 0x0100                        ; 256 entries * 4KiB = 1 MiB
         mov eax, PTE_Page_Index_Mask | PTE_Present
     .pt_0_fill:
-        mov [bx], dword eax
+        mov es:[bx], dword eax
         add eax, 0x1000
         add bx, 4
         loop .pt_0_fill
@@ -35,7 +36,7 @@ init_page_directory:
         mov edx, PTE_Page_Index_Mask | PTE_Present
         add edx, 0x100000
     .pt_768_fill:
-        mov [bx], dword edx
+        mov es:[bx], dword edx
         add edx, 0x1000
         add bx, 4
         loop .pt_768_fill
@@ -48,7 +49,7 @@ init_page_directory:
         mov edx, PTE_Page_Index_Mask | PTE_Present
         add edx, 0xffffff00
     .pt_1023_fill:
-        mov [bx], dword edx
+        mov es:[bx], dword edx
         add edx, 0x1000
         add bx, 4
         loop .pt_1023_fill
@@ -60,22 +61,25 @@ init_page_directory:
         mov eax, page_table_0
         shl eax, 12
         or eax, PDE_Present
-        mov [bx], eax
+        mov es:[bx], eax
         add bx, 768 * 4
         mov eax, page_table_768
         shl eax, 12
         or eax, PDE_Present
-        mov [bx], eax
+        mov es:[bx], eax
         add bx, 1023 * 4
         mov eax, page_table_1023
         shl eax, 12
         or eax, PDE_Present
-        mov [bx], eax
+        mov es:[bx], eax
 
 
         ; set the page directory
         mov eax, page_directory
+        mov ebx, paging_tables_base << 4
+        add eax, ebx
         mov cr3, eax
+        pop es
         ret
 
 

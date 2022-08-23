@@ -255,7 +255,6 @@ find_kernel_code_block:
         pop bx
 
         ; move the code section of the file to the kernel code memory area
-
         push ds
         mov ax, gs
         mov ds, ax
