@@ -304,6 +304,7 @@ PModeMain:
         mov eax, cr0
         or eax, Paging           ; set Paging bit in CR0 (Control Register 0)
         mov cr0, eax
+        mov esp, 0xc03fffff
 
         ; write 'Kernel started' to text buffer
         write32 kernel_start, 7
