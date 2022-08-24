@@ -261,43 +261,21 @@ find_kernel_code_block:
         mov ax, kernel_base
         mov es, ax                                 ; set es to the segment to later map to higher half
         mov dx, gs:[bx + ELF32_Program_Header.p_memsz]
-        write section_mem_footprint
-        
-        mov ax, dx
-        call print_hex_word
-        write newline
         memset_rm 0, dx, [section_offset]
 
         ; move the code section of the file to the kernel code memory area
         ; keep ES set to the destination segment
+        mov dx, [section_offset]
         push ds                                    ; temporarily set DS = GS so the macro works on the right segments
         mov ax, gs
         mov ds, ax
-        mov ax, [bx + ELF32_Program_Header.p_offset]
 
-        ; zero(ax)
-        ; push es
-        ; push ds
-        ; mov es, ax
-        ; mov ds, ax
-        ; mov ax, [bx + ELF32_Program_Header.p_offset]
-        ; write program_offset
-        ; call print_hex_seg_offset
-        ; write newline
-        ; push gs
-        ; mov ax, kernel_base
-        ; mov gs, ax
-        ; mov ax, [section_offset]
-        ; write loading_to
-        ; call print_hex_seg_offset
-        ; write newline
-        ; pop gs
-        ; pop ds
-        ; pop es
-
-        memcopy_rm [section_offset], ax, [bx + ELF32_Program_Header.p_filesz]
+        memcopy_rm dx, [bx + ELF32_Program_Header.p_offset], [bx + ELF32_Program_Header.p_filesz]
         pop ds
         pop es
+
+        mov dx, gs:[bx + ELF32_Program_Header.p_memsz]
+        add [section_offset], dx                   ; dx = total size to allocate to the kernel code memory area
 
     .loop_continue:
         ; advance the pointer through the header array
