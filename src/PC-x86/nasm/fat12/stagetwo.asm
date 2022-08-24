@@ -240,24 +240,28 @@ find_kernel_code_block:
         call print_decimal_word
         write newline
 
-    .program_header_loop:
+        ; bx = pointer to the first program header
         mov bx, gs:[kernel_raw_offset + ELF32_Header.program_header_table]
-        add bx, kernel_raw_offset
+        add bx, kernel_raw_offset                  ; bx = pointer to the first program header
+    .program_header_loop:
+        ; check to see if the section is loadable
         mov ax, gs:[bx + ELF32_Program_Header.p_type]
         cmp ax, ELF_Header_loadable_type
-        jne .loop_continue
+        jne .loop_continue                         ; not a loadable section, skip
+
+        ; found a loadable section
         ; first, clear the region of memory to load to
         push es
         mov ax, kernel_base
-        mov es, ax
+        mov es, ax                                 ; set es to the segment to later map to higher half
         mov dx, gs:[bx + ELF32_Program_Header.p_memsz]
-        add [section_offset_buffer], dx            ; dx = total size to allocate to the kernel code memory area
         push bx
         memset_rm 0, bx, dx
         pop bx
 
         ; move the code section of the file to the kernel code memory area
-        push ds
+        ; keep ES set to the destination segment
+        push ds                                    ; temporarily set DS = GS so the macro works on the right segments
         mov ax, gs
         mov ds, ax
         memcopy_rm [section_offset_buffer], [bx + ELF32_Program_Header.p_offset], [bx + ELF32_Program_Header.p_filesz]
@@ -267,8 +271,10 @@ find_kernel_code_block:
     .loop_continue:
         ; advance the pointer through the header array
         add bx, ELF32_Program_Header_size
+        add [section_offset_buffer], dx            ; dx = total size to allocate to the kernel code memory area
         loop .program_header_loop
         pop gs
+
 
 load_GDT:
        cli
@@ -280,7 +286,6 @@ promote_pm:
         mov eax, cr0
         or eax, Protection       ; set PE (Protection Enable) bit in CR0 (Control Register 0)
         mov cr0, eax
-
 
 
         ; Perform far jump to selector 08h (offset into GDT, pointing at a 32bit PM code segment descriptor) 
@@ -300,13 +305,12 @@ PModeMain:
         mov gs, ax
         mov esp, 0x00090000
 
-
         call init_page_directory
 
         mov eax, cr0
         or eax, Paging           ; set Paging bit in CR0 (Control Register 0)
         mov cr0, eax
-        mov esp, 0xc03fffff
+        mov esp, 0xc03ffffc
 
         ; write 'Kernel started' to text buffer
         write32 kernel_start, 7
@@ -386,7 +390,7 @@ valid_elf_file               db 'Valid x86 ELF32 executable file.', CR, LF, NULL
 
 number_of_sections           db 'Number of sections: ', NULL
 
-section_offset_buffer        resw 1
+section_offset_buffer        dw kcode_offset               ; initialize to the start of the code area
 
 
 %include "init_gdt.inc"
