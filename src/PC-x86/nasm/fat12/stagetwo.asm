@@ -49,7 +49,7 @@ struc KData
     .fat           resd fat_size
 endstruc
 
-kcode_offset       equ 0x0010
+kcode_offset       equ 0x0000
 kernel_raw_base    equ 0x1000
 kernel_raw_offset  equ 0x0000
 
