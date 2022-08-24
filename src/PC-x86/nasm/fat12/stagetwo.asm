@@ -49,7 +49,7 @@ struc KData
     .fat           resd fat_size
 endstruc
 
-kcode_offset       equ 0x0000
+kcode_offset       equ 0x0010
 kernel_raw_base    equ 0x1000
 kernel_raw_offset  equ 0x0000
 
@@ -58,7 +58,7 @@ Protection         equ 1
 Paging             equ 0x80000000
 
 Kernel_linear_addr equ 0xc0000000
-
+Kernel_stack_addr  equ Kernel_linear_addr + 0x003ffffc
 
 bits 16
 org stage2_offset
@@ -232,7 +232,7 @@ find_kernel_code_block:
     .read_elf_header_table:
         write valid_elf_file
         ; set up an offset for the code sections in memory
-        mov [section_offset_buffer], word kcode_offset
+        mov [section_offset], word kcode_offset
         mov cx, gs:[kernel_raw_offset + ELF32_Header.program_table_entry_count]
 
         write number_of_sections
@@ -240,9 +240,15 @@ find_kernel_code_block:
         call print_decimal_word
         write newline
 
-        ; bx = pointer to the first program header
-        mov bx, gs:[kernel_raw_offset + ELF32_Header.program_header_table]
-        add bx, kernel_raw_offset                  ; bx = pointer to the first program header
+        ; while most of the size fields in the ELF32 header are 32-bit dwords,
+        ; a number of places in this code assume that the amounts in question
+        ; are under 64KiB, and can be read with a 16-bit word. This is a reasonable
+        ; assumption with the current code, but may not hold if the kernel grows
+        ; beyond it's current <64KiB size.
+
+        ; bx = pointer to the first program header - location must be under 64KiB to work
+        mov bx, word gs:[kernel_raw_offset + ELF32_Header.program_header_table]
+
     .program_header_loop:
         ; check to see if the section is loadable
         mov ax, gs:[bx + ELF32_Program_Header.p_type]
@@ -255,23 +261,48 @@ find_kernel_code_block:
         mov ax, kernel_base
         mov es, ax                                 ; set es to the segment to later map to higher half
         mov dx, gs:[bx + ELF32_Program_Header.p_memsz]
-        push bx
-        memset_rm 0, bx, dx
-        pop bx
+        write section_mem_footprint
+        
+        mov ax, dx
+        call print_hex_word
+        write newline
+        memset_rm 0, dx, [section_offset]
 
         ; move the code section of the file to the kernel code memory area
         ; keep ES set to the destination segment
         push ds                                    ; temporarily set DS = GS so the macro works on the right segments
         mov ax, gs
         mov ds, ax
-        memcopy_rm [section_offset_buffer], [bx + ELF32_Program_Header.p_offset], [bx + ELF32_Program_Header.p_filesz]
+        mov ax, [bx + ELF32_Program_Header.p_offset]
+
+        ; zero(ax)
+        ; push es
+        ; push ds
+        ; mov es, ax
+        ; mov ds, ax
+        ; mov ax, [bx + ELF32_Program_Header.p_offset]
+        ; write program_offset
+        ; call print_hex_seg_offset
+        ; write newline
+        ; push gs
+        ; mov ax, kernel_base
+        ; mov gs, ax
+        ; mov ax, [section_offset]
+        ; write loading_to
+        ; call print_hex_seg_offset
+        ; write newline
+        ; pop gs
+        ; pop ds
+        ; pop es
+
+        memcopy_rm [section_offset], ax, [bx + ELF32_Program_Header.p_filesz]
         pop ds
         pop es
 
     .loop_continue:
         ; advance the pointer through the header array
         add bx, ELF32_Program_Header_size
-        add [section_offset_buffer], dx            ; dx = total size to allocate to the kernel code memory area
+        add [section_offset], dx            ; dx = total size to allocate to the kernel code memory area
         loop .program_header_loop
         pop gs
 
@@ -310,7 +341,7 @@ PModeMain:
         mov eax, cr0
         or eax, Paging           ; set Paging bit in CR0 (Control Register 0)
         mov cr0, eax
-        mov esp, 0xc03ffffc
+        mov esp, Kernel_stack_addr
 
         ; write 'Kernel started' to text buffer
         write32 kernel_start, 7
@@ -390,7 +421,13 @@ valid_elf_file               db 'Valid x86 ELF32 executable file.', CR, LF, NULL
 
 number_of_sections           db 'Number of sections: ', NULL
 
-section_offset_buffer        dw kcode_offset               ; initialize to the start of the code area
+section_offset               dw kcode_offset               ; initialize to the start of the code area
+
+offset_print_buffer          resd 1
+
+section_mem_footprint        db 'Section memory footprint: ', NULL
+program_offset               db 'Program offset is: ', NULL
+loading_to                   db 'Loading kernel code to ', NULL
 
 
 %include "init_gdt.inc"

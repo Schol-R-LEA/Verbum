@@ -6,7 +6,7 @@ bits 32
 
 page_directory           equ 0x0040000
 page_table_0             equ page_directory + 0x1000
-page_table_768           equ page_directory + 0x2000
+page_table_768           equ page_table_0   + 0x1000
 
 init_page_directory:
         mov ebx, dword page_directory
@@ -31,7 +31,7 @@ init_page_directory:
         memset32 0, 0x0400, ebx                ; clear the table entries
         ; entries 0-4096 - mapping the start of higher half
         mov ecx, 0x1000                        ; 4096 entries * 4KiB = 4 MiB
-        mov eax, 0x00100000
+        mov eax, 0x00100000                    ; the 1MiB entry point
     .pt_768_fill:
         mov edx, eax
         or edx, PTE_Present
