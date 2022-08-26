@@ -41,13 +41,13 @@ stage2_offset      equ stage2_buffer     ; the second stage into
 kernel_base        equ 0xffff
 
 struc KData
-    .fat           resb fat_size
     .drive         resd 1
+    .fat           resb fat_size
     .mmap          resb High_Mem_Map_size * 16
     .mmap_cnt      resd 1
 endstruc
 
-kdata_offset       equ 0xffff - KData_size
+kdata_offset       equ 0x10000 - KData_size
 
 kcode_offset       equ 0x0010
 kernel_raw_base    equ 0x1000
