@@ -40,14 +40,14 @@ stage2_offset      equ stage2_buffer     ; the second stage into
 
 kernel_base        equ 0xffff
 
-kdata_offset       equ 0xfffc
-
 struc KData
-    .mmap_cnt      resd 1
-    .mmap          resd High_Mem_Map_size * 16
+    .fat           resb fat_size
     .drive         resd 1
-    .fat           resd fat_size
+    .mmap          resb High_Mem_Map_size * 16
+    .mmap_cnt      resd 1
 endstruc
+
+kdata_offset       equ 0xffff - KData_size
 
 kcode_offset       equ 0x0010
 kernel_raw_base    equ 0x1000
@@ -134,11 +134,11 @@ get_mem_maps:
         push bp
         mov ax, kernel_base
         mov es, ax
-        mov di, (kdata_offset - KData.mmap - mem_map_buffer_size)
-        mov si, (kdata_offset - KData.mmap_cnt)
+        mov di, (kdata_offset + KData.mmap)
+        mov si, (kdata_offset + KData.mmap_cnt)
         call get_hi_memory_map
-        mov di, (kdata_offset - KData.mmap - mem_map_buffer_size)
-        mov bp, es:[kdata_offset - KData.mmap_cnt]
+        mov di, (kdata_offset + KData.mmap)
+        mov bp, es:[kdata_offset + KData.mmap_cnt]
         call print_hi_mem_map
         pop bp
         pop di
@@ -146,10 +146,17 @@ get_mem_maps:
         pop es
 
 load_kernel_data:
+        push ax
+        push es
+        mov ax, kernel_base
+        mov es, ax
+        zero(edx)
         mov dx, word [bp - stg2_parameters.drive]
-        mov [kdata_offset - KData.drive], edx
-        lea ax, [kdata_offset - KData.fat - fat_size]
+        mov es:[kdata_offset + KData.drive], edx
+        mov ax, kdata_offset + KData.fat
         memcopy_rm ax, [bp - stg2_parameters.fat_0], fat_size
+        pop es
+        pop ax
 
         write newline
 
