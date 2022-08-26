@@ -44,7 +44,7 @@ kdata_offset       equ 0xfffc
 
 struc KData
     .mmap_cnt      resd 1
-    .mmap          resd High_Mem_Map_size
+    .mmap          resd High_Mem_Map_size * 16
     .drive         resd 1
     .fat           resd fat_size
 endstruc
@@ -58,7 +58,7 @@ Protection         equ 1
 Paging             equ 0x80000000
 
 Kernel_linear_addr equ 0xc0000000
-Kernel_stack_addr  equ Kernel_linear_addr + 0x003ffffc
+Kernel_stack_addr  equ Kernel_linear_addr + 0x000ffffc
 
 bits 16
 org stage2_offset
@@ -119,7 +119,7 @@ A20_enable:
 
 
 ;; Attempt to get the full physical memory map for the system
-;; this should be done before the move to protected mode
+;; this must be done before the move to protected mode
 get_mem_maps:
         ; get the low memory map
         write low_mem
@@ -172,7 +172,6 @@ load_kernel_code:
         write kernel_file_found
 
         ; reset the disk drive
-
         call near reset_disk
 
         mov di, word [bp - stg2_parameters.fat_0]
