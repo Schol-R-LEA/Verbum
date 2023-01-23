@@ -5,8 +5,8 @@
 ;; and modified for NASM
 
 struc GDT_R
-    .base                resd 1
     .limit               resw 1
+    .base                resd 1
 endstruc
 
 struc GDT_ENTRY

@@ -414,6 +414,7 @@ program_offset               db 'Program offset is: ', NULL
 loading_to                   db 'Loading kernel code to ', NULL
 
 
+%line 0 tables.asm
 %include "init_gdt.inc"
 %include "init_tss.inc"
 ;%include "init_idt.inc"
