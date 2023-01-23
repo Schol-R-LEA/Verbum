@@ -25,8 +25,8 @@ align 8
 
 gdtr:
 istruc GDT_R
-at GDT_R.limit,          dw gdt
-at GDT_R.base,           dd (GDT_ENTRY_size * 32)
+at GDT_R.base,           dd gdt
+at GDT_R.limit,          dw (GDT_ENTRY_size * 32)
 iend
 
 
