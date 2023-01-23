@@ -47,12 +47,12 @@ struc KData
     .mmap_cnt      resd 1
 endstruc
 
-kdata_offset       equ 0x10000 - KData_size
-
 kcode_offset       equ 0x0010
 kernel_raw_base    equ 0x1000
 kernel_raw_offset  equ 0x0000
 
+; kdata_offset       equ 0x10000 - 0x2000
+kdata_offset       equ 0x10000 - KData_size
 
 Protection         equ 1
 Paging             equ 0x80000000
