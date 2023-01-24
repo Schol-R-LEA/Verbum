@@ -32,11 +32,10 @@
 
 %macro populate_pte 3
         ; set up the page table
-        mov ebx, %3                            ; get location to save the table entry
+        mov ebx, dword %3                      ; get location to save the table entry
         memset32 0, 0x0400, ebx                ; clear the table entries
-        ; entries 0-4096
-        mov ecx, 0x1000                        ; 4096 entries * 4KiB = 4 MiB
-        mov eax, %2                            ; the physical address to  map
+        mov ecx, dword %2                      ; number of entries to fill
+        mov eax, dword %1                      ; the physical address to map
     %%pt_fill:
         mov edx, eax
         or edx, PTE_Present
@@ -44,7 +43,15 @@
         add eax, 0x1000
         add ebx, 4
         loop %%pt_fill
+%endmacro
 
+
+%macro populate_pde 2
+        mov ebx, page_directory
+        add ebx, %1 * 4
+        mov eax, %2
+        or eax, PDE_Present
+        mov [ebx], eax
 %endmacro
 
 
