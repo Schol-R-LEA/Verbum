@@ -54,6 +54,4 @@
         mov [ebx], eax
 %endmacro
 
-
-
 %endif
