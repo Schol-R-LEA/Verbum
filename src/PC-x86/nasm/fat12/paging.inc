@@ -29,4 +29,24 @@
 %define PTE_Availability_Mask 0b00000000000000000000111000000000
 %define PTE_Page_Index_Mask   0b11111111111111111111000000000000
 
+
+%macro populate_pte 3
+        ; set up the page table
+        mov ebx, %3                            ; get location to save the table entry
+        memset32 0, 0x0400, ebx                ; clear the table entries
+        ; entries 0-4096
+        mov ecx, 0x1000                        ; 4096 entries * 4KiB = 4 MiB
+        mov eax, %2                            ; the physical address to  map
+    %%pt_fill:
+        mov edx, eax
+        or edx, PTE_Present
+        mov [ebx], dword edx
+        add eax, 0x1000
+        add ebx, 4
+        loop %%pt_fill
+
+%endmacro
+
+
+
 %endif
