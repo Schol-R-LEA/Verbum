@@ -15,6 +15,7 @@ page_table_0x0303        equ page_table_0x0302 + 0x1000
 page_table_0x0304        equ page_table_0x0303 + 0x1000
 page_table_0x0305        equ page_table_0x0304 + 0x1000
 
+
 init_page_directory:
         mov ebx, dword page_directory
         memset32 0, 0x1000, ebx              ; clear the page dir table
