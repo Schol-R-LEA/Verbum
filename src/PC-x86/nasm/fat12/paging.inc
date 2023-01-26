@@ -30,15 +30,18 @@
 %define PTE_Page_Index_Mask   0b11111111111111111111000000000000
 
 
+
 %macro populate_pte 4
         ; set up the page table
-        mov ebx, dword %1         ; location to save the table entry
-        memset32 0, 0x0400, ebx   ; clear the table entries
-        mov ecx, dword %2         ; number of entries to fill
-        mov eax, dword %3         ; the physical address to map
+        mov ebx, dword %1             ; location to save the table entry
+        mov ecx, dword %2             ; number of entries to fill
+        mov eax, dword %3             ; the physical address to map
+
+        memset32 0, 0x1000, ebx       ; clear the table entries
     %%pt_fill:
         mov edx, eax
-        or edx, %4                ; flags
+        and edx, PTE_Page_Index_Mask  ; clear the flags before setting them
+        or edx, %4                    ; flags
         mov [ebx], dword edx
         add eax, 0x1000
         add ebx, 4
@@ -48,9 +51,9 @@
 
 %macro populate_pde 3
         mov ebx, page_directory
-        mov eax, %1               ; directory entry
-        add ebx, %2 * 4           ; directory entry index 
-        or eax,  %3               ; flags
+        mov eax, %1                   ; directory entry address
+        add ebx, %2 * 4               ; directory entry index
+        or eax,  %3                   ; flags
         mov [ebx], eax
 %endmacro
 
