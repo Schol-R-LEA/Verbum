@@ -34,7 +34,7 @@ init_page_directory:
         mov ebx, dword page_directory
         memset32 0, 0x1000, ebx              ; clear the page dir table
 
-        ; 4 MiB - identity mapping the low memory and kernel 
+        ; 4 MiB - identity mapping the low memory and kernel
         populate_pte page_table_0x0000, 0x1000, 0x00000000, PTE_Present
 
         ; 16 MiB - the page tables
@@ -43,9 +43,9 @@ init_page_directory:
         populate_pte page_table_0x0003, 0x1000, 0x00C00000, PTE_Present
         populate_pte page_table_0x0004, 0x1000, 0x01000000, PTE_Present
 
-        ; 20 KiB - the page directory and the kernel stack 
+        ; 20 KiB - the page directory and the kernel stack
         populate_pte page_table_0x0005, 0x1000, 0x01400000, PTE_Present
-        
+
         ; 3MiB - high-half mapping of the kernel
         populate_pte page_table_0x0300, 0x0C00, 0x00100000, PTE_Present
 
