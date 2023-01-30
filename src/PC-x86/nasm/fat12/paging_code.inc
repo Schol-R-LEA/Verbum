@@ -35,7 +35,7 @@ init_page_directory:
         memset32 0, 0x1000, ebx              ; clear the page dir table
 
         ; 4 MiB - identity mapping the low memory and kernel
-        populate_pte page_table_0x0000, 0x1000, 0x00000000, PTE_Present
+        populate_pte page_table_0x0000, 0x0400, 0x00000000, PTE_Present
 
         ; 16 MiB - the page tables
         populate_pte page_table_0x0001, 0x1000, 0x00400000, PTE_Present
@@ -50,10 +50,10 @@ init_page_directory:
         populate_pte page_table_0x0300, 0x0C00, 0x00100000, PTE_Present
 
         ; 4MiB - system tables
-        populate_pte page_table_0x0301, 0x1000, 0x01400000, PTE_Present
+        populate_pte page_table_0x0301, 0x1000, 0x01800000, PTE_Present
 
         ; 16 KiB - virtual address of the stack
-        populate_pte page_table_0x0304, 0x0010, 0x01800000, PTE_Present
+        populate_pte page_table_0x0304, 0x0010, 0x01401000, PTE_Present
 
 
     .setup_directory:
