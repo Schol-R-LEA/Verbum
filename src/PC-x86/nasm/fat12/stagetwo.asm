@@ -58,7 +58,7 @@ Protection         equ 1
 Paging             equ 0x80000000
 
 Kernel_linear_addr equ 0xc0000000
-Kernel_stack_addr  equ Kernel_linear_addr + 0x000ffffc
+Kernel_stack_addr  equ Kernel_linear_addr + 0x000fffff
 
 bits 16
 org stage2_offset
